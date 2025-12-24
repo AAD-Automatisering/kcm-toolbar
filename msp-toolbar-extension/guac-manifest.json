@@ -1,0 +1,7 @@
+{
+  "name": "msp-toolbar",
+  "namespace": "msp",
+  "css": [ "css/toolbar.css" ],
+  "js": [ "js/toolbar.js" ],
+  "html": [ "html/toolbar.html" ]
+}
