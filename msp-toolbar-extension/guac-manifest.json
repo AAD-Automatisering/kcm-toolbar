@@ -1,8 +1,7 @@
 {
-  "guacamoleVersion" : "1.5.5",
-  "name"      : "MSP Toolbar",
-  "namespace" : "msp-toolbar",
-  "css"  : [ "css/toolbar.css" ],
-  "js"   : [ "js/toolbar.js" ],
-  "html" : [ "html/toolbar.html" ]
+  "guacamoleVersion": "1.5.5",
+  "name": "MSP Toolbar",
+  "namespace": "msp-toolbar",
+  "js": [ "js/toolbar.js" ],
+  "css": [ "css/toolbar.css" ]
 }
