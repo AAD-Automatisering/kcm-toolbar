@@ -95,6 +95,78 @@
     }
   };
 
+  const getCookieValue = (name) => {
+    const match = document.cookie
+      .split(";")
+      .map((item) => item.trim())
+      .find((item) => item.startsWith(`${name}=`));
+    return match ? decodeURIComponent(match.split("=")[1]) : "";
+  };
+
+  const getGuacamoleToken = () => {
+    const tokenKeys = ["guacamole-token", "GUAC_TOKEN", "GUAC_AUTH_TOKEN", "token"];
+    for (const key of tokenKeys) {
+      const value = localStorage.getItem(key) || sessionStorage.getItem(key);
+      if (value) {
+        return value;
+      }
+    }
+
+    for (const key of tokenKeys) {
+      const cookieValue = getCookieValue(key);
+      if (cookieValue) {
+        return cookieValue;
+      }
+    }
+
+    try {
+      const injector = angular.element(document.body).injector();
+      const auth = injector.get("authenticationService");
+      if (typeof auth.getCurrentToken === "function") {
+        return auth.getCurrentToken();
+      }
+      if (typeof auth.getToken === "function") {
+        return auth.getToken();
+      }
+      if (auth.currentToken) {
+        return auth.currentToken;
+      }
+      if (auth.token) {
+        return auth.token;
+      }
+    } catch (error) {
+      return "";
+    }
+
+    return "";
+  };
+
+  const fetchApiConnections = async () => {
+    const token = getGuacamoleToken();
+    const headers = token ? { "guacamole-token": token } : {};
+    const endpoints = [
+      "/api/session/data/postgresql-shared/activeConnections",
+      "/api/session/data/postgresql/activeConnections"
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          headers,
+          credentials: "same-origin"
+        });
+        if (!response.ok) {
+          continue;
+        }
+        return await response.json();
+      } catch (error) {
+        continue;
+      }
+    }
+
+    return null;
+  };
+
   const renderResults = () => {
     const results = resultsEl();
     if (!results) {
@@ -141,14 +213,22 @@
     results.classList.add("is-open");
   };
 
-  const fetchResults = (query) => {
+  const fetchResults = async (query) => {
     if (!query) {
       clearResults();
       return;
     }
 
+    const token = {};
+    state.pending = token;
+
     const q = query.toLowerCase();
-    const all = getConnections();
+    const payload = await fetchApiConnections();
+    if (state.pending !== token) {
+      return;
+    }
+    const apiConnections = normalizeResults(payload);
+    const all = apiConnections.length ? apiConnections : getConnections();
 
     state.results = all.filter((item) => {
       const name = getResultName(item).toLowerCase();
