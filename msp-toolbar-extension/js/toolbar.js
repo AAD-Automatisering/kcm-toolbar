@@ -2,7 +2,7 @@
   const TOOLBAR_ID = "msp-toolbar";
   const INPUT_ID = "msp-toolbar-input";
   const RESULTS_ID = "msp-toolbar-results";
-  const CSS_PATH = "/extensions/msp-toolbar/toolbar.css";
+  const CSS_PATH = "/guacamole/extensions/msp-toolbar/toolbar.css";
 
   const addStylesheet = () => {
     if (document.querySelector(`link[href*='${CSS_PATH}']`)) {
