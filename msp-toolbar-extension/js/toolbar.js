@@ -1,11 +1,20 @@
 (function () {
 
+  function waitForAngular(cb) {
+    const i = setInterval(() => {
+      if (window.angular && angular.element(document.body).injector()) {
+        clearInterval(i);
+        cb();
+      }
+    }, 300);
+  }
+
   function getConnections() {
     try {
       const injector = angular.element(document.body).injector();
       const manager = injector.get('connectionManager');
       return Object.values(manager.connections || {});
-    } catch (e) {
+    } catch {
       return [];
     }
   }
@@ -16,8 +25,8 @@
 
     list.forEach(c => {
       const item = document.createElement('div');
-      item.textContent = c.name;
       item.className = 'msp-result';
+      item.textContent = c.name;
       item.onclick = () => window.location.hash = '#/client/' + c.identifier;
       box.appendChild(item);
     });
@@ -33,9 +42,10 @@
 
   function init() {
     const input = document.getElementById('msp-toolbar-input');
+    if (!input) return;
     input.addEventListener('input', e => search(e.target.value));
   }
 
-  window.addEventListener('load', () => setTimeout(init, 1000));
+  waitForAngular(init);
 
 })();
