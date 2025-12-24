@@ -2,11 +2,7 @@
   const TOOLBAR_ID = "msp-toolbar";
   const INPUT_ID = "msp-toolbar-input";
   const RESULTS_ID = "msp-toolbar-results";
-  const CSS_PATH = "toolbar.css";
-
-  if (document.getElementById(TOOLBAR_ID)) {
-    return;
-  }
+  const CSS_PATH = "/extensions/msp-toolbar/toolbar.css";
 
   const addStylesheet = () => {
     if (document.querySelector(`link[href*='${CSS_PATH}']`)) {
@@ -235,7 +231,11 @@
 
   const init = () => {
     addStylesheet();
-    buildToolbar();
+    if (!document.getElementById(TOOLBAR_ID)) {
+      buildToolbar();
+    } else {
+      document.body.classList.add("msp-toolbar-enabled");
+    }
     const input = inputEl();
     if (!input) {
       return;
