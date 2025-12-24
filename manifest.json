@@ -1,0 +1,7 @@
+{
+  "id": "msp-toolbar",
+  "name": "MSP Search Toolbar",
+  "type": "ui",
+  "entry": "toolbar.js",
+  "location": "root"
+}

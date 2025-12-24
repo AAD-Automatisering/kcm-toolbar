@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  kcm:
+    image: keeper/connection-manager:latest
+    container_name: kcm
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - kcm_data:/opt/kcm/data
+      - kcm_extensions:/opt/kcm/extensions
+    environment:
+      - TZ=UTC
+
+  kcm_toolbar_updater:
+    image: alpine/git:latest
+    container_name: kcm-toolbar-updater
+    restart: unless-stopped
+    environment:
+      - REPO_URL=https://github.com/your-org/kcm-msp-toolbar.git
+      - REPO_BRANCH=main
+    volumes:
+      - kcm_extensions:/repo
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        while true; do
+          if [ ! -d /repo/.git ]; then
+            git clone --branch "$REPO_BRANCH" "$REPO_URL" /repo;
+          else
+            git -C /repo fetch --prune;
+            git -C /repo reset --hard "origin/$REPO_BRANCH";
+          fi
+          sleep 3600;
+        done
+
+volumes:
+  kcm_data:
+  kcm_extensions:
