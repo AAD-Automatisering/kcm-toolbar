@@ -85,6 +85,16 @@
 
   const getResultParent = (item) => item.parent || item.group || item.folder || "";
 
+  const getConnections = () => {
+    try {
+      const injector = angular.element(document.body).injector();
+      const manager = injector.get("connectionManager");
+      return Object.values(manager.connections || {});
+    } catch (error) {
+      return [];
+    }
+  };
+
   const renderResults = () => {
     const results = resultsEl();
     if (!results) {
@@ -131,31 +141,29 @@
     results.classList.add("is-open");
   };
 
-  const fetchResults = async (query) => {
+  const fetchResults = (query) => {
     if (!query) {
       clearResults();
       return;
     }
 
-    const token = {};
-    state.pending = token;
+    const q = query.toLowerCase();
+    const all = getConnections();
 
-    try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-      if (state.pending !== token) {
-        return;
-      }
-      if (!response.ok) {
-        clearResults();
-        return;
-      }
-      const payload = await response.json();
-      state.results = normalizeResults(payload);
-      state.activeIndex = state.results.length ? 0 : -1;
-      renderResults();
-    } catch (error) {
-      clearResults();
-    }
+    state.results = all.filter((item) => {
+      const name = getResultName(item).toLowerCase();
+      const parent = getResultParent(item).toLowerCase();
+      const protocol = getResultProtocol(item).toLowerCase();
+
+      return (
+        name.includes(q) ||
+        parent.includes(q) ||
+        protocol.includes(q)
+      );
+    });
+
+    state.activeIndex = state.results.length ? 0 : -1;
+    renderResults();
   };
 
   const handleInput = (event) => {
