@@ -103,19 +103,30 @@
     return match ? decodeURIComponent(match.split("=")[1]) : "";
   };
 
+  const normalizeToken = (value) => {
+    if (!value) {
+      return "";
+    }
+    const trimmed = value.trim();
+    if (trimmed.length >= 2 && trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
+      return trimmed.slice(1, -1);
+    }
+    return trimmed;
+  };
+
   const getGuacamoleToken = () => {
     const tokenKeys = ["guacamole-token", "GUAC_TOKEN", "GUAC_AUTH_TOKEN", "token"];
     for (const key of tokenKeys) {
       const value = localStorage.getItem(key) || sessionStorage.getItem(key);
       if (value) {
-        return value;
+        return normalizeToken(value);
       }
     }
 
     for (const key of tokenKeys) {
       const cookieValue = getCookieValue(key);
       if (cookieValue) {
-        return cookieValue;
+        return normalizeToken(cookieValue);
       }
     }
 
@@ -123,16 +134,16 @@
       const injector = angular.element(document.body).injector();
       const auth = injector.get("authenticationService");
       if (typeof auth.getCurrentToken === "function") {
-        return auth.getCurrentToken();
+        return normalizeToken(auth.getCurrentToken());
       }
       if (typeof auth.getToken === "function") {
-        return auth.getToken();
+        return normalizeToken(auth.getToken());
       }
       if (auth.currentToken) {
-        return auth.currentToken;
+        return normalizeToken(auth.currentToken);
       }
       if (auth.token) {
-        return auth.token;
+        return normalizeToken(auth.token);
       }
     } catch (error) {
       return "";
