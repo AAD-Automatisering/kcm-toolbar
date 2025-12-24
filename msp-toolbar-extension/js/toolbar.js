@@ -2,17 +2,6 @@
   const TOOLBAR_ID = "msp-toolbar";
   const INPUT_ID = "msp-toolbar-input";
   const RESULTS_ID = "msp-toolbar-results";
-  const CSS_PATH = "/guacamole/extensions/msp-toolbar/toolbar.css";
-
-  const addStylesheet = () => {
-    if (document.querySelector(`link[href*='${CSS_PATH}']`)) {
-      return;
-    }
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = CSS_PATH;
-    document.head.appendChild(link);
-  };
 
   const buildToolbar = () => {
     const toolbar = document.createElement("div");
@@ -329,7 +318,6 @@
   };
 
   const init = () => {
-    addStylesheet();
     if (!document.getElementById(TOOLBAR_ID)) {
       buildToolbar();
     } else {
