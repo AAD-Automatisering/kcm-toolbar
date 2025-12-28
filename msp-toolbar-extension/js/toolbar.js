@@ -99,7 +99,7 @@
 
   const getDataSource = () => "postgresql";
 
-  const getAuthToken = () => getTokenFromLocation() || getTokenFromApp();
+  const getAuthToken = () => getTokenFromApp();
 
   const getApiRoot = () => {
     const path = window.location.pathname || "";
