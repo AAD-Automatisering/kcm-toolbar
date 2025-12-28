@@ -2,7 +2,6 @@
   const TOOLBAR_ID = "msp-toolbar";
   const MENU_BUTTON_ID = "msp-toolbar-menu";
   const SEARCH_INPUT_ID = "msp-toolbar-search";
-  const SEARCH_BUTTON_ID = "msp-toolbar-search-button";
   const RESULTS_ID = "msp-toolbar-results";
   const REVEAL_THRESHOLD = 12;
   const HIDE_DELAY_MS = 2000;
@@ -359,11 +358,34 @@
     results.hidden = matches.length === 0;
   };
 
+  const encodeConnectionId = (connectionId) =>
+    encodeURIComponent(String(connectionId)).replace(/%2F/gi, "/");
+
+  const buildClientHash = (connectionId) => {
+    const encodedId = encodeConnectionId(connectionId);
+    const hash = window.location.hash || "";
+    const [hashPath, hashQuery = ""] = hash.split("?");
+    const querySuffix = hashQuery ? `?${hashQuery}` : "";
+
+    if (hashPath === "#/client" || hashPath === "#/client/") {
+      return `#/client/${encodedId}${querySuffix}`;
+    }
+    const match = hashPath.match(/^#\/client\/(.+)$/);
+    if (match) {
+      const segments = match[1].split("/");
+      segments[segments.length - 1] = encodedId;
+      return `#/client/${segments.join("/")}${querySuffix}`;
+    }
+    return `#/client/${encodedId}${querySuffix}`;
+  };
+
   const navigateToConnection = (connectionId) => {
     if (!connectionId) {
       return;
     }
-    window.location.hash = `#/client/${encodeURIComponent(connectionId)}`;
+    const targetHash = buildClientHash(connectionId);
+    debugLog("navigate", connectionId, "->", targetHash);
+    window.location.hash = targetHash;
   };
 
   const updateResults = async () => {
@@ -467,9 +489,6 @@
         <input id="${SEARCH_INPUT_ID}" class="msp-toolbar__input" type="search"
           placeholder="Zoek verbinding..." aria-label="Zoek verbinding" autocomplete="off"
           spellcheck="false">
-        <button id="${SEARCH_BUTTON_ID}" class="msp-toolbar__button" type="button" aria-label="Zoeken">
-          Zoek
-        </button>
       </div>
       <div id="${RESULTS_ID}" class="msp-toolbar__results" role="listbox" hidden></div>
     `;
@@ -693,12 +712,6 @@
       searchInput.addEventListener("keypress", (event) => {
         event.stopPropagation();
         event.stopImmediatePropagation();
-      });
-    }
-    const searchButton = document.getElementById(SEARCH_BUTTON_ID);
-    if (searchButton) {
-      searchButton.addEventListener("click", () => {
-        void performSearch(true);
       });
     }
     const results = document.getElementById(RESULTS_ID);
