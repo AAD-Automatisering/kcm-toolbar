@@ -16,6 +16,7 @@
   let menuPollId = null;
   let connectionIndex = null;
   let connectionIndexPromise = null;
+  let connectionDataSource = null;
   let searchRequestId = 0;
 
   const getMenuElement = () =>
@@ -251,7 +252,8 @@
     if (connectionIndexPromise) {
       return connectionIndexPromise;
     }
-    debugLog("dataSource", getDataSource(), "apiRoot", getApiRoot());
+    connectionDataSource = getDataSource();
+    debugLog("dataSource", connectionDataSource, "apiRoot", getApiRoot());
     connectionIndexPromise = requestConnectionTree()
       .then((tree) => {
         const treeRoot = tree && tree.data ? tree.data : tree;
@@ -403,7 +405,7 @@
   const buildClientIdentifier = (connectionId) => {
     const id = String(connectionId);
     const injector = getAngularInjector();
-    const dataSource = getAppDataSource(injector);
+    const dataSource = connectionDataSource || getDataSource() || getAppDataSource(injector);
     if (injector) {
       try {
         const ClientIdentifier = injector.get("ClientIdentifier");
@@ -443,7 +445,7 @@
       return;
     }
     const targetHash = buildClientHash(connectionId);
-    debugLog("navigate", connectionId, "->", targetHash);
+    debugLog("navigate", connectionId, "->", targetHash, "dataSource", connectionDataSource);
     window.location.hash = targetHash;
   };
 
