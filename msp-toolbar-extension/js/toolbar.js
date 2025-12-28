@@ -6,25 +6,16 @@
     const toolbar = document.createElement("div");
     toolbar.id = TOOLBAR_ID;
     toolbar.className = "msp-toolbar";
-    toolbar.setAttribute("role", "search");
+    toolbar.setAttribute("role", "toolbar");
+    toolbar.setAttribute("aria-label", "KCM toolbar");
 
     toolbar.innerHTML = `
-      <div class="msp-toolbar__inner">
-        <input
-          id="${INPUT_ID}"
-          class="msp-toolbar__input"
-          type="search"
-          placeholder="Zoek klant, server of connectie..."
-          autocomplete="off"
-          spellcheck="false"
-          aria-label="Zoek klant, server of connectie"
-        />
-      </div>
-      <div id="${RESULTS_ID}" class="msp-toolbar__results" role="listbox" aria-label="Search results"></div>
+      <button id="${MENU_BUTTON_ID}" class="msp-toolbar__button" type="button" aria-label="Open menu">
+        Menu
+      </button>
     `;
 
     document.body.prepend(toolbar);
-    document.body.classList.add("msp-toolbar-enabled");
   };
 
   const toggleMenu = () => {
@@ -38,8 +29,6 @@
   const init = () => {
     if (!document.getElementById(TOOLBAR_ID)) {
       buildToolbar();
-    } else {
-      document.body.classList.add("msp-toolbar-enabled");
     }
     const button = document.getElementById(MENU_BUTTON_ID);
     if (!button) {
