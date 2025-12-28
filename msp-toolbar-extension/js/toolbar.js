@@ -21,21 +21,21 @@
   const getMenuElement = () =>
     document.querySelector(".guac-menu.menu") || document.querySelector(".guac-menu");
 
-  const getStorageValue = (storage, keys) => {
-    if (!storage) {
+  const getAngularInjector = () => {
+    const angular = window.angular;
+    if (!angular || !angular.element) {
+      return null;
+    }
+    const root =
+      document.querySelector("[ng-app]") || document.body || document.documentElement || null;
+    if (!root) {
       return null;
     }
     try {
-      for (const key of keys) {
-        const value = storage.getItem(key);
-        if (value) {
-          return value;
-        }
-      }
+      return angular.element(root).injector() || null;
     } catch (error) {
       return null;
     }
-    return null;
   };
 
   const normalizeToken = (value) => {
@@ -81,9 +81,25 @@
     return tokenFromSearch || null;
   };
 
+  const getTokenFromApp = () => {
+    const injector = getAngularInjector();
+    if (!injector) {
+      return null;
+    }
+    try {
+      const authService = injector.get("authenticationService");
+      if (authService && typeof authService.getCurrentToken === "function") {
+        return normalizeToken(authService.getCurrentToken());
+      }
+    } catch (error) {
+      return null;
+    }
+    return null;
+  };
+
   const getDataSource = () => "postgresql";
 
-  const getAuthToken = () => getTokenFromLocation();
+  const getAuthToken = () => getTokenFromLocation() || getTokenFromApp();
 
   const getApiRoot = () => {
     const path = window.location.pathname || "";
@@ -297,23 +313,6 @@
       results.appendChild(item);
     });
     results.hidden = matches.length === 0;
-  };
-
-  const getAngularInjector = () => {
-    const angular = window.angular;
-    if (!angular || !angular.element) {
-      return null;
-    }
-    const root =
-      document.querySelector("[ng-app]") || document.body || document.documentElement || null;
-    if (!root) {
-      return null;
-    }
-    try {
-      return angular.element(root).injector() || null;
-    } catch (error) {
-      return null;
-    }
   };
 
   const base64urlEncode = (value) => {
