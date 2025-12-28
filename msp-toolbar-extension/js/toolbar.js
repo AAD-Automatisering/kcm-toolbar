@@ -8,6 +8,7 @@
   const HIDE_DELAY_MS = 2000;
   const SEARCH_SUGGEST_MIN = 2;
   const MAX_RESULTS = 8;
+  const DEBUG_STORAGE_KEY = "msp-toolbar-debug";
 
   let lastPointerY = Number.POSITIVE_INFINITY;
   let hideTimeoutId = null;
@@ -38,6 +39,47 @@
     return null;
   };
 
+  const isDebugEnabled = () => {
+    try {
+      return window.MSP_TOOLBAR_DEBUG === true || window.localStorage.getItem(DEBUG_STORAGE_KEY) === "1";
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const debugLog = (...args) => {
+    if (isDebugEnabled()) {
+      console.info("[msp-toolbar]", ...args);
+    }
+  };
+
+  const redactUrl = (url) => {
+    try {
+      const parsed = new URL(url, window.location.origin);
+      if (parsed.searchParams.has("token")) {
+        const token = parsed.searchParams.get("token") || "";
+        const masked =
+          token.length > 6 ? `${token.slice(0, 4)}…${token.slice(-2)}` : token ? "***" : "";
+        parsed.searchParams.set("token", masked);
+      }
+      return parsed.toString();
+    } catch (error) {
+      return url.replace(/token=[^&]+/i, "token=***");
+    }
+  };
+
+  const getTokenFromLocation = () => {
+    const hash = window.location.hash || "";
+    const hashQuery = hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : "";
+    const searchQuery = window.location.search ? window.location.search.slice(1) : "";
+    const tokenFromHash = new URLSearchParams(hashQuery).get("token");
+    if (tokenFromHash) {
+      return tokenFromHash;
+    }
+    const tokenFromSearch = new URLSearchParams(searchQuery).get("token");
+    return tokenFromSearch || null;
+  };
+
   const getDataSource = () =>
     getStorageValue(window.localStorage, ["GUAC_DATA_SOURCE", "guac-data-source", "dataSource"]) ||
     getStorageValue(window.sessionStorage, ["GUAC_DATA_SOURCE", "guac-data-source", "dataSource"]) ||
@@ -45,8 +87,9 @@
     "postgresql";
 
   const getAuthToken = () =>
-    getStorageValue(window.localStorage, ["GUAC_AUTH_TOKEN", "guac-auth-token", "authToken", "GUAC_TOKEN"]) ||
-    getStorageValue(window.sessionStorage, ["GUAC_AUTH_TOKEN", "guac-auth-token", "authToken", "GUAC_TOKEN"]) ||
+    getTokenFromLocation() ||
+    getStorageValue(window.localStorage, ["GUAC_AUTH_TOKEN", "guac-auth-token", "authToken", "GUAC_TOKEN", "guac_token"]) ||
+    getStorageValue(window.sessionStorage, ["GUAC_AUTH_TOKEN", "guac-auth-token", "authToken", "GUAC_TOKEN", "guac_token"]) ||
     window.GUAC_AUTH_TOKEN ||
     null;
 
@@ -58,14 +101,15 @@
     return path.replace(/\/$/, "");
   };
 
-  const buildApiUrl = () => {
+  const buildApiUrl = (options = {}) => {
+    const includeToken = options.includeToken !== false;
     const dataSource = getDataSource();
     const apiRoot = getApiRoot();
     const basePath = `${apiRoot}/api/session/data/${encodeURIComponent(
       dataSource
     )}/connectionGroups/ROOT/tree`;
     const token = getAuthToken();
-    if (!token) {
+    if (!token || !includeToken) {
       return basePath;
     }
     const url = new URL(basePath, window.location.origin);
@@ -131,22 +175,46 @@
     return results;
   };
 
+  const fetchConnectionTree = async (includeToken) => {
+    const url = buildApiUrl({ includeToken });
+    debugLog("fetch tree", redactUrl(url));
+    const response = await fetch(url, { credentials: "same-origin" });
+    debugLog("fetch status", response.status, response.ok);
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    return response.json();
+  };
+
+  const requestConnectionTree = async () => {
+    const token = getAuthToken();
+    try {
+      return await fetchConnectionTree(false);
+    } catch (error) {
+      if (token && (error.status === 401 || error.status === 403)) {
+        debugLog("retrying with token");
+        return fetchConnectionTree(true);
+      }
+      throw error;
+    }
+  };
+
   const ensureConnectionIndex = () => {
     if (connectionIndexPromise) {
       return connectionIndexPromise;
     }
-    connectionIndexPromise = fetch(buildApiUrl(), { credentials: "same-origin" })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        return response.json();
-      })
+    debugLog("dataSource", getDataSource(), "apiRoot", getApiRoot());
+    connectionIndexPromise = requestConnectionTree()
       .then((tree) => {
-        connectionIndex = buildConnectionIndex(tree);
+        const treeRoot = tree && tree.data ? tree.data : tree;
+        connectionIndex = buildConnectionIndex(treeRoot);
+        debugLog("index size", connectionIndex.length);
         return connectionIndex;
       })
       .catch((error) => {
+        debugLog("index error", error && error.message ? error.message : error);
         connectionIndexPromise = null;
         throw error;
       });
@@ -275,6 +343,7 @@
       return;
     }
     const matches = findMatches(query).slice(0, MAX_RESULTS);
+    debugLog("query", query, "matches", matches.length);
     if (!matches.length) {
       showResultsMessage("Geen resultaten.");
       return;
