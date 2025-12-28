@@ -83,28 +83,7 @@
 
   const getDataSource = () => "postgresql";
 
-  const getAuthToken = () =>
-    getTokenFromLocation() ||
-    normalizeToken(
-      getStorageValue(window.localStorage, [
-        "GUAC_AUTH_TOKEN",
-        "guac-auth-token",
-        "authToken",
-        "GUAC_TOKEN",
-        "guac_token"
-      ])
-    ) ||
-    normalizeToken(
-      getStorageValue(window.sessionStorage, [
-        "GUAC_AUTH_TOKEN",
-        "guac-auth-token",
-        "authToken",
-        "GUAC_TOKEN",
-        "guac_token"
-      ])
-    ) ||
-    normalizeToken(window.GUAC_AUTH_TOKEN) ||
-    null;
+  const getAuthToken = () => getTokenFromLocation();
 
   const getApiRoot = () => {
     const path = window.location.pathname || "";
