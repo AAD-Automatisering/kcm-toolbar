@@ -54,6 +54,19 @@
     dispatchKey("keyup", "Control", "ControlLeft", 17, { ctrlKey: false });
   };
 
+  const isClientRoute = () => {
+    const hash = window.location.hash || "";
+    return /^#\/client(\/|$)/.test(hash);
+  };
+
+  const updateVisibility = () => {
+    const toolbar = document.getElementById(TOOLBAR_ID);
+    if (!toolbar) {
+      return;
+    }
+    toolbar.style.display = isClientRoute() ? "block" : "none";
+  };
+
   const toggleMenu = () => {
     triggerMenuShortcut();
   };
@@ -63,10 +76,12 @@
       buildToolbar();
     }
     const button = document.getElementById(MENU_BUTTON_ID);
-    if (!button) {
-      return;
+    if (button) {
+      button.addEventListener("click", toggleMenu);
     }
-    button.addEventListener("click", toggleMenu);
+    updateVisibility();
+    window.addEventListener("hashchange", updateVisibility);
+    window.addEventListener("popstate", updateVisibility);
   };
 
   if (document.readyState === "loading") {
