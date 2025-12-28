@@ -188,6 +188,11 @@
 
   const getResultsElement = () => document.getElementById(RESULTS_ID);
 
+  const isSearchFocused = () => {
+    const active = document.activeElement;
+    return active && active.id === SEARCH_INPUT_ID;
+  };
+
   const showResultsMessage = (message) => {
     const results = getResultsElement();
     if (!results) {
@@ -307,6 +312,28 @@
       return;
     }
     renderResults(matches);
+  };
+
+  const interceptSearchKeys = (event) => {
+    if (!isSearchFocused()) {
+      return;
+    }
+    if (event.type === "keydown") {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void performSearch(true);
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        hideResults();
+        const input = document.getElementById(SEARCH_INPUT_ID);
+        if (input) {
+          input.blur();
+        }
+      }
+    }
+    event.stopPropagation();
+    event.stopImmediatePropagation();
   };
 
   const buildToolbar = () => {
@@ -527,6 +554,11 @@
         void updateResults();
       });
       searchInput.addEventListener("keydown", (event) => {
+        if (event.defaultPrevented) {
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          return;
+        }
         if (event.key === "Enter") {
           event.preventDefault();
           void performSearch(true);
@@ -535,6 +567,16 @@
           hideResults();
           searchInput.blur();
         }
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+      });
+      searchInput.addEventListener("keyup", (event) => {
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+      });
+      searchInput.addEventListener("keypress", (event) => {
+        event.stopPropagation();
+        event.stopImmediatePropagation();
       });
     }
     const searchButton = document.getElementById(SEARCH_BUTTON_ID);
@@ -570,6 +612,9 @@
     startMenuObserver();
     window.addEventListener("hashchange", updateVisibility);
     window.addEventListener("popstate", updateVisibility);
+    window.addEventListener("keydown", interceptSearchKeys, true);
+    window.addEventListener("keyup", interceptSearchKeys, true);
+    window.addEventListener("keypress", interceptSearchKeys, true);
     document.addEventListener("click", (event) => {
       if (toolbar && !toolbar.contains(event.target)) {
         hideResults();
