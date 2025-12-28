@@ -14,4 +14,18 @@
       <scope>provided</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <resources>
+      <resource>
+        <directory>.</directory>
+        <includes>
+          <include>guac-manifest.json</include>
+          <include>css/**</include>
+          <include>js/**</include>
+          <include>html/**</include>
+        </includes>
+      </resource>
+    </resources>
+  </build>
 </project>
