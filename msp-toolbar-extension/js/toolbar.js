@@ -7,7 +7,6 @@
   const HIDE_DELAY_MS = 2000;
   const SEARCH_SUGGEST_MIN = 2;
   const MAX_RESULTS = 8;
-  const DEBUG_STORAGE_KEY = "msp-toolbar-debug";
 
   let lastPointerY = Number.POSITIVE_INFINITY;
   let hideTimeoutId = null;
@@ -37,35 +36,6 @@
       return null;
     }
     return null;
-  };
-
-  const isDebugEnabled = () => {
-    try {
-      return window.MSP_TOOLBAR_DEBUG === true || window.localStorage.getItem(DEBUG_STORAGE_KEY) === "1";
-    } catch (error) {
-      return false;
-    }
-  };
-
-  const debugLog = (...args) => {
-    if (isDebugEnabled()) {
-      console.info("[msp-toolbar]", ...args);
-    }
-  };
-
-  const redactUrl = (url) => {
-    try {
-      const parsed = new URL(url, window.location.origin);
-      if (parsed.searchParams.has("token")) {
-        const token = parsed.searchParams.get("token") || "";
-        const masked =
-          token.length > 6 ? `${token.slice(0, 4)}…${token.slice(-2)}` : token ? "***" : "";
-        parsed.searchParams.set("token", masked);
-      }
-      return parsed.toString();
-    } catch (error) {
-      return url.replace(/token=[^&]+/i, "token=***");
-    }
   };
 
   const normalizeToken = (value) => {
@@ -224,9 +194,7 @@
 
   const fetchConnectionTree = async (includeToken) => {
     const url = buildApiUrl({ includeToken });
-    debugLog("fetch tree", redactUrl(url));
     const response = await fetch(url, { credentials: "same-origin" });
-    debugLog("fetch status", response.status, response.ok);
     if (!response.ok) {
       const error = new Error(`HTTP ${response.status}`);
       error.status = response.status;
@@ -241,7 +209,6 @@
       return await fetchConnectionTree(false);
     } catch (error) {
       if (token && (error.status === 401 || error.status === 403)) {
-        debugLog("retrying with token");
         return fetchConnectionTree(true);
       }
       throw error;
@@ -253,16 +220,13 @@
       return connectionIndexPromise;
     }
     connectionDataSource = getDataSource();
-    debugLog("dataSource", connectionDataSource, "apiRoot", getApiRoot());
     connectionIndexPromise = requestConnectionTree()
       .then((tree) => {
         const treeRoot = tree && tree.data ? tree.data : tree;
         connectionIndex = buildConnectionIndex(treeRoot);
-        debugLog("index size", connectionIndex.length);
         return connectionIndex;
       })
       .catch((error) => {
-        debugLog("index error", error && error.message ? error.message : error);
         connectionIndexPromise = null;
         throw error;
       });
@@ -445,7 +409,6 @@
       return;
     }
     const targetHash = buildClientHash(connectionId);
-    debugLog("navigate", connectionId, "->", targetHash, "dataSource", connectionDataSource);
     window.location.hash = targetHash;
   };
 
@@ -473,7 +436,6 @@
       return;
     }
     const matches = findMatches(query).slice(0, MAX_RESULTS);
-    debugLog("query", query, "matches", matches.length);
     if (!matches.length) {
       showResultsMessage("Geen resultaten.");
       return;
