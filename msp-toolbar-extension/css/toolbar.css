@@ -1,8 +1,10 @@
 :root {
-  --msp-bg: #0f1c2e;
-  --msp-border: #1f3148;
-  --msp-text: #f1f5f9;
-  --msp-focus: #34b3ff;
+  --msp-bg: rgb(38, 38, 38);
+  --msp-bg-hover: rgb(58, 58, 58);
+  --msp-border: rgb(68, 68, 68);
+  --msp-border-hover: rgb(120, 180, 255);
+  --msp-text: #f2f2f2;
+  --msp-focus: rgb(120, 180, 255);
   --msp-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
   --msp-radius: 10px;
   --msp-font: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -38,12 +40,15 @@
   letter-spacing: 0.2px;
   cursor: pointer;
   box-shadow: var(--msp-shadow);
-  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease,
+    background-color 120ms ease;
 }
 
 .msp-toolbar__button:hover {
   transform: translateY(-1px);
-  border-color: var(--msp-focus);
+  border-color: var(--msp-border-hover);
+  background: var(--msp-bg-hover);
+  box-shadow: 0 0 0 3px rgba(120, 180, 255, 0.22), var(--msp-shadow);
 }
 
 .msp-toolbar__button:active {
