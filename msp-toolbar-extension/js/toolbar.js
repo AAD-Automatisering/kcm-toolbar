@@ -358,25 +358,84 @@
     results.hidden = matches.length === 0;
   };
 
-  const encodeConnectionId = (connectionId) =>
-    encodeURIComponent(String(connectionId)).replace(/%2F/gi, "/");
+  const getAngularInjector = () => {
+    const angular = window.angular;
+    if (!angular || !angular.element) {
+      return null;
+    }
+    const root =
+      document.querySelector("[ng-app]") || document.body || document.documentElement || null;
+    if (!root) {
+      return null;
+    }
+    try {
+      return angular.element(root).injector() || null;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const base64urlEncode = (value) => {
+    let binary = value;
+    if (window.TextEncoder) {
+      const bytes = new TextEncoder().encode(value);
+      binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
+    }
+    return window
+      .btoa(binary)
+      .replace(/[+/=]/g, (char) => ({ "+": "-", "/": "_", "=": "" }[char]));
+  };
+
+  const getAppDataSource = (injector) => {
+    if (injector) {
+      try {
+        const authService = injector.get("authenticationService");
+        if (authService && typeof authService.getDataSource === "function") {
+          return authService.getDataSource() || getDataSource();
+        }
+      } catch (error) {
+        // Ignore and fall back to local storage.
+      }
+    }
+    return getDataSource();
+  };
+
+  const buildClientIdentifier = (connectionId) => {
+    const id = String(connectionId);
+    const injector = getAngularInjector();
+    const dataSource = getAppDataSource(injector);
+    if (injector) {
+      try {
+        const ClientIdentifier = injector.get("ClientIdentifier");
+        if (ClientIdentifier && typeof ClientIdentifier.toString === "function") {
+          const type =
+            (ClientIdentifier.Types && ClientIdentifier.Types.CONNECTION) || "c";
+          return ClientIdentifier.toString({ id, type, dataSource });
+        }
+      } catch (error) {
+        // Ignore and fall back to local encoding.
+      }
+    }
+    if (
+      window.Guacamole &&
+      window.Guacamole.ClientIdentifier &&
+      typeof window.Guacamole.ClientIdentifier.toString === "function"
+    ) {
+      const type =
+        (window.Guacamole.ClientIdentifier.Types &&
+          window.Guacamole.ClientIdentifier.Types.CONNECTION) ||
+        "c";
+      return window.Guacamole.ClientIdentifier.toString({ id, type, dataSource });
+    }
+    return base64urlEncode([id, "c", dataSource].join("\0"));
+  };
 
   const buildClientHash = (connectionId) => {
-    const encodedId = encodeConnectionId(connectionId);
+    const clientIdentifier = buildClientIdentifier(connectionId);
     const hash = window.location.hash || "";
-    const [hashPath, hashQuery = ""] = hash.split("?");
+    const [, hashQuery = ""] = hash.split("?");
     const querySuffix = hashQuery ? `?${hashQuery}` : "";
-
-    if (hashPath === "#/client" || hashPath === "#/client/") {
-      return `#/client/${encodedId}${querySuffix}`;
-    }
-    const match = hashPath.match(/^#\/client\/(.+)$/);
-    if (match) {
-      const segments = match[1].split("/");
-      segments[segments.length - 1] = encodedId;
-      return `#/client/${segments.join("/")}${querySuffix}`;
-    }
-    return `#/client/${encodedId}${querySuffix}`;
+    return `#/client/${clientIdentifier}${querySuffix}`;
   };
 
   const navigateToConnection = (connectionId) => {
