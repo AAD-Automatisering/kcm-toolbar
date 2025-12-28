@@ -19,6 +19,10 @@
   pointer-events: none;
   z-index: 9999;
   font-family: var(--msp-font);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
   transition: opacity 160ms ease, transform 160ms ease;
 }
 
@@ -54,4 +58,86 @@
 .msp-toolbar__button:active {
   transform: translateY(0);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.22);
+}
+
+.msp-toolbar__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.msp-toolbar__input {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--msp-radius);
+  border: 1px solid var(--msp-border);
+  background: var(--msp-bg);
+  color: var(--msp-text);
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 220px;
+  width: 32vw;
+  max-width: 360px;
+  box-shadow: var(--msp-shadow);
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+
+.msp-toolbar__input::placeholder {
+  color: rgba(242, 242, 242, 0.6);
+}
+
+.msp-toolbar__input:focus {
+  outline: none;
+  border-color: var(--msp-border-hover);
+  background: var(--msp-bg-hover);
+  box-shadow: 0 0 0 3px rgba(120, 180, 255, 0.22), var(--msp-shadow);
+}
+
+.msp-toolbar__results {
+  width: min(560px, 92vw);
+  background: var(--msp-bg);
+  border: 1px solid var(--msp-border);
+  border-radius: var(--msp-radius);
+  box-shadow: var(--msp-shadow);
+  padding: 6px;
+}
+
+.msp-toolbar__results[hidden] {
+  display: none;
+}
+
+.msp-toolbar__result {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--msp-text);
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.msp-toolbar__result:hover {
+  background: var(--msp-bg-hover);
+  border-color: var(--msp-border-hover);
+}
+
+.msp-toolbar__result-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.msp-toolbar__result-path {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  opacity: 0.72;
+}
+
+.msp-toolbar__results-empty {
+  padding: 8px 10px;
+  font-size: 13px;
+  opacity: 0.7;
 }

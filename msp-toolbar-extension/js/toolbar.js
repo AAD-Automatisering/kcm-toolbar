@@ -1,17 +1,313 @@
 (() => {
   const TOOLBAR_ID = "msp-toolbar";
   const MENU_BUTTON_ID = "msp-toolbar-menu";
+  const SEARCH_INPUT_ID = "msp-toolbar-search";
+  const SEARCH_BUTTON_ID = "msp-toolbar-search-button";
+  const RESULTS_ID = "msp-toolbar-results";
   const REVEAL_THRESHOLD = 12;
   const HIDE_DELAY_MS = 2000;
+  const SEARCH_SUGGEST_MIN = 2;
+  const MAX_RESULTS = 8;
 
   let lastPointerY = Number.POSITIVE_INFINITY;
   let hideTimeoutId = null;
   let isHovering = false;
   let menuObserver = null;
   let menuPollId = null;
+  let connectionIndex = null;
+  let connectionIndexPromise = null;
+  let searchRequestId = 0;
 
   const getMenuElement = () =>
     document.querySelector(".guac-menu.menu") || document.querySelector(".guac-menu");
+
+  const getStorageValue = (storage, keys) => {
+    if (!storage) {
+      return null;
+    }
+    try {
+      for (const key of keys) {
+        const value = storage.getItem(key);
+        if (value) {
+          return value;
+        }
+      }
+    } catch (error) {
+      return null;
+    }
+    return null;
+  };
+
+  const getDataSource = () =>
+    getStorageValue(window.localStorage, ["GUAC_DATA_SOURCE", "guac-data-source", "dataSource"]) ||
+    getStorageValue(window.sessionStorage, ["GUAC_DATA_SOURCE", "guac-data-source", "dataSource"]) ||
+    window.GUAC_DATA_SOURCE ||
+    "postgresql";
+
+  const getAuthToken = () =>
+    getStorageValue(window.localStorage, ["GUAC_AUTH_TOKEN", "guac-auth-token", "authToken", "GUAC_TOKEN"]) ||
+    getStorageValue(window.sessionStorage, ["GUAC_AUTH_TOKEN", "guac-auth-token", "authToken", "GUAC_TOKEN"]) ||
+    window.GUAC_AUTH_TOKEN ||
+    null;
+
+  const getApiRoot = () => {
+    const path = window.location.pathname || "";
+    if (!path || path === "/") {
+      return "";
+    }
+    return path.replace(/\/$/, "");
+  };
+
+  const buildApiUrl = () => {
+    const dataSource = getDataSource();
+    const apiRoot = getApiRoot();
+    const basePath = `${apiRoot}/api/session/data/${encodeURIComponent(
+      dataSource
+    )}/connectionGroups/ROOT/tree`;
+    const token = getAuthToken();
+    if (!token) {
+      return basePath;
+    }
+    const url = new URL(basePath, window.location.origin);
+    url.searchParams.set("token", token);
+    return url.toString();
+  };
+
+  const normalizeToArray = (value) => {
+    if (!value) {
+      return [];
+    }
+    if (Array.isArray(value)) {
+      return value;
+    }
+    if (typeof value === "object") {
+      return Object.values(value);
+    }
+    return [];
+  };
+
+  const getConnectionId = (connection) =>
+    (connection &&
+      (connection.identifier ||
+        connection.id ||
+        connection.connectionIdentifier ||
+        connection.uuid)) ||
+    null;
+
+  const buildConnectionIndex = (node, parents = []) => {
+    const results = [];
+    if (!node || typeof node !== "object") {
+      return results;
+    }
+    const nodeName = node.name ? String(node.name) : "";
+    const nodeId = node.identifier || node.id || "";
+    const isRoot = nodeId === "ROOT" || nodeName === "ROOT";
+    const nextParents = !isRoot && nodeName ? parents.concat([nodeName]) : parents;
+
+    const childConnections = normalizeToArray(node.childConnections);
+    childConnections.forEach((connection) => {
+      const id = getConnectionId(connection);
+      const name = connection && connection.name ? String(connection.name) : "";
+      if (!id || !name) {
+        return;
+      }
+      const groupPath = nextParents.join(" / ");
+      const path = groupPath ? `${groupPath} / ${name}` : name;
+      results.push({
+        id: String(id),
+        name,
+        groupPath,
+        path,
+        nameLower: name.toLowerCase(),
+        pathLower: path.toLowerCase()
+      });
+    });
+
+    const childGroups = normalizeToArray(node.childConnectionGroups);
+    childGroups.forEach((group) => {
+      results.push(...buildConnectionIndex(group, nextParents));
+    });
+
+    return results;
+  };
+
+  const ensureConnectionIndex = () => {
+    if (connectionIndexPromise) {
+      return connectionIndexPromise;
+    }
+    connectionIndexPromise = fetch(buildApiUrl(), { credentials: "same-origin" })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((tree) => {
+        connectionIndex = buildConnectionIndex(tree);
+        return connectionIndex;
+      })
+      .catch((error) => {
+        connectionIndexPromise = null;
+        throw error;
+      });
+    return connectionIndexPromise;
+  };
+
+  const scoreConnection = (connection, queryLower) => {
+    if (connection.nameLower === queryLower) {
+      return 0;
+    }
+    if (connection.nameLower.startsWith(queryLower)) {
+      return 1;
+    }
+    if (connection.nameLower.includes(queryLower)) {
+      return 2;
+    }
+    if (connection.pathLower.startsWith(queryLower)) {
+      return 3;
+    }
+    return 4;
+  };
+
+  const findMatches = (query) => {
+    if (!connectionIndex) {
+      return [];
+    }
+    const queryLower = query.toLowerCase();
+    return connectionIndex
+      .filter((connection) => connection.pathLower.includes(queryLower))
+      .sort((a, b) => {
+        const scoreA = scoreConnection(a, queryLower);
+        const scoreB = scoreConnection(b, queryLower);
+        if (scoreA !== scoreB) {
+          return scoreA - scoreB;
+        }
+        return a.pathLower.localeCompare(b.pathLower);
+      });
+  };
+
+  const getResultsElement = () => document.getElementById(RESULTS_ID);
+
+  const showResultsMessage = (message) => {
+    const results = getResultsElement();
+    if (!results) {
+      return;
+    }
+    results.innerHTML = "";
+    const messageEl = document.createElement("div");
+    messageEl.className = "msp-toolbar__results-empty";
+    messageEl.textContent = message;
+    results.appendChild(messageEl);
+    results.hidden = false;
+  };
+
+  const hideResults = () => {
+    const results = getResultsElement();
+    if (!results) {
+      return;
+    }
+    results.innerHTML = "";
+    results.hidden = true;
+  };
+
+  const renderResults = (matches) => {
+    const results = getResultsElement();
+    if (!results) {
+      return;
+    }
+    results.innerHTML = "";
+    matches.forEach((match) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "msp-toolbar__result";
+      item.dataset.connectionId = match.id;
+
+      const title = document.createElement("span");
+      title.className = "msp-toolbar__result-title";
+      title.textContent = match.name;
+      item.appendChild(title);
+
+      if (match.groupPath) {
+        const path = document.createElement("span");
+        path.className = "msp-toolbar__result-path";
+        path.textContent = match.groupPath;
+        item.appendChild(path);
+      }
+
+      results.appendChild(item);
+    });
+    results.hidden = matches.length === 0;
+  };
+
+  const navigateToConnection = (connectionId) => {
+    if (!connectionId) {
+      return;
+    }
+    window.location.hash = `#/client/${encodeURIComponent(connectionId)}`;
+  };
+
+  const updateResults = async () => {
+    const input = document.getElementById(SEARCH_INPUT_ID);
+    if (!input) {
+      return;
+    }
+    const query = input.value.trim();
+    if (query.length < SEARCH_SUGGEST_MIN) {
+      hideResults();
+      return;
+    }
+    const requestId = ++searchRequestId;
+    if (!connectionIndex) {
+      showResultsMessage("Laden...");
+    }
+    try {
+      await ensureConnectionIndex();
+    } catch (error) {
+      showResultsMessage("Kon verbindingen niet laden.");
+      return;
+    }
+    if (requestId !== searchRequestId) {
+      return;
+    }
+    const matches = findMatches(query).slice(0, MAX_RESULTS);
+    if (!matches.length) {
+      showResultsMessage("Geen resultaten.");
+      return;
+    }
+    renderResults(matches);
+  };
+
+  const performSearch = async (openFirst) => {
+    const input = document.getElementById(SEARCH_INPUT_ID);
+    if (!input) {
+      return;
+    }
+    const query = input.value.trim();
+    if (!query) {
+      hideResults();
+      return;
+    }
+    if (!connectionIndex) {
+      showResultsMessage("Laden...");
+    }
+    try {
+      await ensureConnectionIndex();
+    } catch (error) {
+      showResultsMessage("Kon verbindingen niet laden.");
+      return;
+    }
+    const matches = findMatches(query).slice(0, MAX_RESULTS);
+    if (!matches.length) {
+      showResultsMessage("Geen resultaten.");
+      return;
+    }
+    if (openFirst) {
+      navigateToConnection(matches[0].id);
+      hideResults();
+      return;
+    }
+    renderResults(matches);
+  };
 
   const buildToolbar = () => {
     const toolbar = document.createElement("div");
@@ -21,9 +317,18 @@
     toolbar.setAttribute("aria-label", "KCM toolbar");
 
     toolbar.innerHTML = `
-      <button id="${MENU_BUTTON_ID}" class="msp-toolbar__button" type="button" aria-label="Open menu">
-        Menu
-      </button>
+      <div class="msp-toolbar__controls">
+        <button id="${MENU_BUTTON_ID}" class="msp-toolbar__button" type="button" aria-label="Open menu">
+          Menu
+        </button>
+        <input id="${SEARCH_INPUT_ID}" class="msp-toolbar__input" type="search"
+          placeholder="Zoek verbinding..." aria-label="Zoek verbinding" autocomplete="off"
+          spellcheck="false">
+        <button id="${SEARCH_BUTTON_ID}" class="msp-toolbar__button" type="button" aria-label="Zoeken">
+          Zoek
+        </button>
+      </div>
+      <div id="${RESULTS_ID}" class="msp-toolbar__results" role="listbox" hidden></div>
     `;
 
     document.body.prepend(toolbar);
@@ -144,6 +449,7 @@
     clearHideTimeout();
     if (!visible) {
       setRevealed(false);
+      hideResults();
       return;
     }
     if (isMenuOpen() || lastPointerY <= REVEAL_THRESHOLD) {
@@ -212,6 +518,42 @@
     if (button) {
       button.addEventListener("click", toggleMenu);
     }
+    const searchInput = document.getElementById(SEARCH_INPUT_ID);
+    if (searchInput) {
+      searchInput.addEventListener("focus", () => {
+        void ensureConnectionIndex().catch(() => {});
+      });
+      searchInput.addEventListener("input", () => {
+        void updateResults();
+      });
+      searchInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          void performSearch(true);
+        }
+        if (event.key === "Escape") {
+          hideResults();
+          searchInput.blur();
+        }
+      });
+    }
+    const searchButton = document.getElementById(SEARCH_BUTTON_ID);
+    if (searchButton) {
+      searchButton.addEventListener("click", () => {
+        void performSearch(true);
+      });
+    }
+    const results = document.getElementById(RESULTS_ID);
+    if (results) {
+      results.addEventListener("click", (event) => {
+        const target = event.target.closest("[data-connection-id]");
+        if (!target) {
+          return;
+        }
+        navigateToConnection(target.dataset.connectionId);
+        hideResults();
+      });
+    }
     const toolbar = document.getElementById(TOOLBAR_ID);
     if (toolbar) {
       toolbar.addEventListener("mouseenter", () => {
@@ -228,6 +570,11 @@
     startMenuObserver();
     window.addEventListener("hashchange", updateVisibility);
     window.addEventListener("popstate", updateVisibility);
+    document.addEventListener("click", (event) => {
+      if (toolbar && !toolbar.contains(event.target)) {
+        hideResults();
+      }
+    });
     document.addEventListener("mousemove", handlePointerMove, { passive: true });
   };
 

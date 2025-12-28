@@ -1,6 +1,14 @@
 <meta name="before-children" content="body">
 <div id="msp-toolbar" class="msp-toolbar" role="toolbar" aria-label="KCM toolbar" style="display: none;">
-  <button id="msp-toolbar-menu" class="msp-toolbar__button" type="button" aria-label="Open menu">
-    Menu
-  </button>
+  <div class="msp-toolbar__controls">
+    <button id="msp-toolbar-menu" class="msp-toolbar__button" type="button" aria-label="Open menu">
+      Menu
+    </button>
+    <input id="msp-toolbar-search" class="msp-toolbar__input" type="search" placeholder="Zoek verbinding..."
+      aria-label="Zoek verbinding" autocomplete="off" spellcheck="false">
+    <button id="msp-toolbar-search-button" class="msp-toolbar__button" type="button" aria-label="Zoeken">
+      Zoek
+    </button>
+  </div>
+  <div id="msp-toolbar-results" class="msp-toolbar__results" role="listbox" hidden></div>
 </div>
