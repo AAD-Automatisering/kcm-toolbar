@@ -68,15 +68,46 @@
     }
   };
 
+  const normalizeToken = (value) => {
+    if (!value) {
+      return null;
+    }
+    let token = String(value).trim();
+    if (
+      (token.startsWith("\"") && token.endsWith("\"")) ||
+      (token.startsWith("'") && token.endsWith("'"))
+    ) {
+      token = token.slice(1, -1);
+    }
+    if (/%[0-9a-fA-F]{2}/.test(token)) {
+      try {
+        token = decodeURIComponent(token);
+      } catch (error) {
+        // Ignore decode failures and keep original token.
+      }
+    }
+    token = token.trim();
+    if (
+      (token.startsWith("\"") && token.endsWith("\"")) ||
+      (token.startsWith("'") && token.endsWith("'"))
+    ) {
+      token = token.slice(1, -1);
+    }
+    if (/^bearer\s+/i.test(token)) {
+      token = token.replace(/^bearer\s+/i, "");
+    }
+    return token || null;
+  };
+
   const getTokenFromLocation = () => {
     const hash = window.location.hash || "";
     const hashQuery = hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : "";
     const searchQuery = window.location.search ? window.location.search.slice(1) : "";
-    const tokenFromHash = new URLSearchParams(hashQuery).get("token");
+    const tokenFromHash = normalizeToken(new URLSearchParams(hashQuery).get("token"));
     if (tokenFromHash) {
       return tokenFromHash;
     }
-    const tokenFromSearch = new URLSearchParams(searchQuery).get("token");
+    const tokenFromSearch = normalizeToken(new URLSearchParams(searchQuery).get("token"));
     return tokenFromSearch || null;
   };
 
@@ -88,9 +119,25 @@
 
   const getAuthToken = () =>
     getTokenFromLocation() ||
-    getStorageValue(window.localStorage, ["GUAC_AUTH_TOKEN", "guac-auth-token", "authToken", "GUAC_TOKEN", "guac_token"]) ||
-    getStorageValue(window.sessionStorage, ["GUAC_AUTH_TOKEN", "guac-auth-token", "authToken", "GUAC_TOKEN", "guac_token"]) ||
-    window.GUAC_AUTH_TOKEN ||
+    normalizeToken(
+      getStorageValue(window.localStorage, [
+        "GUAC_AUTH_TOKEN",
+        "guac-auth-token",
+        "authToken",
+        "GUAC_TOKEN",
+        "guac_token"
+      ])
+    ) ||
+    normalizeToken(
+      getStorageValue(window.sessionStorage, [
+        "GUAC_AUTH_TOKEN",
+        "guac-auth-token",
+        "authToken",
+        "GUAC_TOKEN",
+        "guac_token"
+      ])
+    ) ||
+    normalizeToken(window.GUAC_AUTH_TOKEN) ||
     null;
 
   const getApiRoot = () => {
