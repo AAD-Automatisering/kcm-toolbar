@@ -21,6 +21,42 @@
   const getMenuElement = () =>
     document.querySelector(".guac-menu.menu") || document.querySelector(".guac-menu");
 
+  const dispatchKey = (type, key, code, keyCode, modifiers) => {
+    const event = new KeyboardEvent(type, {
+      key,
+      code,
+      bubbles: true,
+      cancelable: true,
+      ...modifiers
+    });
+
+    try {
+      Object.defineProperty(event, "keyCode", { get: () => keyCode });
+      Object.defineProperty(event, "which", { get: () => keyCode });
+    } catch (error) {
+      // Ignore if the browser prevents overriding read-only fields.
+    }
+
+    document.dispatchEvent(event);
+  };
+
+  const triggerMenuShortcut = () => {
+    dispatchKey("keydown", "Control", "ControlLeft", 17, { ctrlKey: true });
+    dispatchKey("keydown", "Alt", "AltLeft", 18, { ctrlKey: true, altKey: true });
+    dispatchKey("keydown", "Shift", "ShiftLeft", 16, {
+      ctrlKey: true,
+      altKey: true,
+      shiftKey: true
+    });
+    dispatchKey("keyup", "Shift", "ShiftLeft", 16, {
+      ctrlKey: true,
+      altKey: true,
+      shiftKey: false
+    });
+    dispatchKey("keyup", "Alt", "AltLeft", 18, { ctrlKey: true, altKey: false });
+    dispatchKey("keyup", "Control", "ControlLeft", 17, { ctrlKey: false });
+  };
+
   const clickMenuToggle = (root) => {
     const toggle = root?.querySelector?.(".menu-toggle, .menu-button, .toggle") ||
       document.querySelector(".menu-toggle, .menu-button, .toggle");
@@ -73,8 +109,34 @@
     return toggleScope(scope.$parent);
   };
 
+  const isMenuVisible = (menu) => {
+    const rect = menu.getBoundingClientRect();
+    return rect.width > 0 && rect.right > 10 && rect.left >= -10;
+  };
+
+  const showMenu = (menu) => {
+    menu.classList.add("open");
+    menu.style.display = "block";
+    menu.style.left = "0px";
+    menu.style.transform = "translateX(0px)";
+  };
+
+  const hideMenu = (menu) => {
+    menu.classList.remove("open");
+    const rect = menu.getBoundingClientRect();
+    const width = rect.width || menu.offsetWidth || 0;
+    if (width) {
+      menu.style.left = `-${width}px`;
+      menu.style.transform = `translateX(-${width}px)`;
+    }
+  };
+
   const toggleMenu = () => {
     const menu = getMenuElement();
+    const wasVisible = menu ? isMenuVisible(menu) : null;
+
+    triggerMenuShortcut();
+
     if (!menu) {
       return;
     }
@@ -90,21 +152,19 @@
       }
     }
 
-    const rect = menu.getBoundingClientRect();
-    const width = rect.width || menu.offsetWidth || 0;
-    const isHidden = rect.right <= 0 || rect.left < -10;
-    if (isHidden) {
-      menu.classList.add("open");
-      menu.style.display = "block";
-      menu.style.left = "0px";
-      menu.style.transform = "translateX(0px)";
-    } else {
-      menu.classList.remove("open");
-      if (width) {
-        menu.style.left = `-${width}px`;
-        menu.style.transform = `translateX(-${width}px)`;
+    setTimeout(() => {
+      const nowVisible = isMenuVisible(menu);
+      if (wasVisible === null) {
+        return;
       }
-    }
+      if (nowVisible === wasVisible) {
+        if (nowVisible) {
+          hideMenu(menu);
+        } else {
+          showMenu(menu);
+        }
+      }
+    }, 0);
   };
 
   const init = () => {
