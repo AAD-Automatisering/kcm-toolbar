@@ -2,11 +2,13 @@
   const TOOLBAR_ID = "msp-toolbar";
   const MENU_BUTTON_ID = "msp-toolbar-menu";
   const REVEAL_THRESHOLD = 12;
-  const HIDE_DELAY_MS = 1200;
+  const HIDE_DELAY_MS = 2000;
 
   let lastPointerY = Number.POSITIVE_INFINITY;
   let hideTimeoutId = null;
   let isHovering = false;
+  let menuObserver = null;
+  let menuPollId = null;
 
   const getMenuElement = () =>
     document.querySelector(".guac-menu.menu") || document.querySelector(".guac-menu");
@@ -69,12 +71,22 @@
   };
 
   const isMenuOpen = () => {
+    if (document.querySelector(".guac-menu.menu.open")) {
+      return true;
+    }
+    if (document.querySelector(".guac-menu.open") || document.querySelector(".menu.open")) {
+      return true;
+    }
+    if (
+      document.body.classList.contains("menu-open") ||
+      document.body.classList.contains("sidebar-open") ||
+      document.body.classList.contains("side-menu-open")
+    ) {
+      return true;
+    }
     const menu = getMenuElement();
     if (!menu) {
       return false;
-    }
-    if (menu.classList.contains("open")) {
-      return true;
     }
     const rect = menu.getBoundingClientRect();
     return rect.width > 0 && rect.right > 10 && rect.left >= -10;
@@ -141,6 +153,53 @@
     }
   };
 
+  const syncRevealWithMenu = () => {
+    if (!isClientRoute()) {
+      return;
+    }
+    if (isMenuOpen()) {
+      clearHideTimeout();
+      setRevealed(true);
+      return;
+    }
+    if (!isHovering && lastPointerY > REVEAL_THRESHOLD) {
+      scheduleHide();
+    }
+  };
+
+  const startMenuObserver = () => {
+    const attach = () => {
+      const menu = getMenuElement();
+      if (!menu) {
+        return false;
+      }
+      if (menuObserver) {
+        menuObserver.disconnect();
+      }
+      menuObserver = new MutationObserver(syncRevealWithMenu);
+      menuObserver.observe(menu, { attributes: true, attributeFilter: ["class", "style"] });
+      return true;
+    };
+
+    if (attach()) {
+      return;
+    }
+
+    menuPollId = setInterval(() => {
+      if (attach()) {
+        clearInterval(menuPollId);
+        menuPollId = null;
+      }
+    }, 500);
+
+    setTimeout(() => {
+      if (menuPollId) {
+        clearInterval(menuPollId);
+        menuPollId = null;
+      }
+    }, 10000);
+  };
+
   const toggleMenu = () => {
     triggerMenuShortcut();
   };
@@ -166,6 +225,7 @@
       });
     }
     updateVisibility();
+    startMenuObserver();
     window.addEventListener("hashchange", updateVisibility);
     window.addEventListener("popstate", updateVisibility);
     document.addEventListener("mousemove", handlePointerMove, { passive: true });
