@@ -10,10 +10,20 @@
 
 .msp-toolbar {
   position: fixed;
-  top: 12px;
-  left: 12px;
+  top: 8px;
+  left: 50%;
+  transform: translate(-50%, -8px);
+  opacity: 0;
+  pointer-events: none;
   z-index: 9999;
   font-family: var(--msp-font);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.msp-toolbar.is-revealed {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
 }
 
 .msp-toolbar__button {

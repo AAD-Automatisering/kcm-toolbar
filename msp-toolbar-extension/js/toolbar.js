@@ -1,6 +1,12 @@
 (() => {
   const TOOLBAR_ID = "msp-toolbar";
   const MENU_BUTTON_ID = "msp-toolbar-menu";
+  const REVEAL_THRESHOLD = 12;
+  const HIDE_DELAY_MS = 200;
+
+  let lastPointerY = Number.POSITIVE_INFINITY;
+  let hideTimeoutId = null;
+  let isHovering = false;
 
   const buildToolbar = () => {
     const toolbar = document.createElement("div");
@@ -59,12 +65,60 @@
     return /^#\/client(\/|$)/.test(hash);
   };
 
+  const setRevealed = (reveal) => {
+    const toolbar = document.getElementById(TOOLBAR_ID);
+    if (!toolbar) {
+      return;
+    }
+    toolbar.classList.toggle("is-revealed", reveal);
+  };
+
+  const clearHideTimeout = () => {
+    if (hideTimeoutId) {
+      clearTimeout(hideTimeoutId);
+      hideTimeoutId = null;
+    }
+  };
+
+  const scheduleHide = () => {
+    clearHideTimeout();
+    hideTimeoutId = setTimeout(() => {
+      if (!isHovering && isClientRoute()) {
+        setRevealed(false);
+      }
+    }, HIDE_DELAY_MS);
+  };
+
+  const handlePointerMove = (event) => {
+    if (!isClientRoute()) {
+      return;
+    }
+    lastPointerY = event.clientY;
+    if (event.clientY <= REVEAL_THRESHOLD) {
+      clearHideTimeout();
+      setRevealed(true);
+    } else if (!isHovering) {
+      scheduleHide();
+    }
+  };
+
   const updateVisibility = () => {
     const toolbar = document.getElementById(TOOLBAR_ID);
     if (!toolbar) {
       return;
     }
-    toolbar.style.display = isClientRoute() ? "block" : "none";
+    const visible = isClientRoute();
+    toolbar.style.display = visible ? "block" : "none";
+    clearHideTimeout();
+    if (!visible) {
+      setRevealed(false);
+      return;
+    }
+    if (lastPointerY <= REVEAL_THRESHOLD) {
+      setRevealed(true);
+    } else {
+      setRevealed(false);
+    }
   };
 
   const toggleMenu = () => {
@@ -79,9 +133,22 @@
     if (button) {
       button.addEventListener("click", toggleMenu);
     }
+    const toolbar = document.getElementById(TOOLBAR_ID);
+    if (toolbar) {
+      toolbar.addEventListener("mouseenter", () => {
+        isHovering = true;
+        clearHideTimeout();
+        setRevealed(true);
+      });
+      toolbar.addEventListener("mouseleave", () => {
+        isHovering = false;
+        scheduleHide();
+      });
+    }
     updateVisibility();
     window.addEventListener("hashchange", updateVisibility);
     window.addEventListener("popstate", updateVisibility);
+    document.addEventListener("mousemove", handlePointerMove, { passive: true });
   };
 
   if (document.readyState === "loading") {
