@@ -1,6 +1,7 @@
 (() => {
   const TOOLBAR_ID = "msp-toolbar";
   const MENU_BUTTON_ID = "msp-toolbar-menu";
+  const HOME_BUTTON_ID = "msp-toolbar-home";
   const SEARCH_INPUT_ID = "msp-toolbar-search";
   const RESULTS_ID = "msp-toolbar-results";
   const REVEAL_THRESHOLD = 12;
@@ -480,8 +481,17 @@
 
     toolbar.innerHTML = `
       <div class="msp-toolbar__controls">
-        <button id="${MENU_BUTTON_ID}" class="msp-toolbar__button" type="button" aria-label="Open menu">
-          Menu
+        <button id="${HOME_BUTTON_ID}" class="msp-toolbar__button msp-toolbar__button--icon" type="button"
+          aria-label="Naar dashboard">
+          <svg class="msp-toolbar__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 3.2 3.5 10v10.2h6.2v-6.1h4.6v6.1h6.2V10L12 3.2zM18.6 18.2h-2.2v-6.1H7.6v6.1H5.4v-7.2L12 5.9l6.6 5.1v7.2z"/>
+          </svg>
+        </button>
+        <button id="${MENU_BUTTON_ID}" class="msp-toolbar__button msp-toolbar__button--icon" type="button"
+          aria-label="Open menu">
+          <svg class="msp-toolbar__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 7.2h16v1.8H4V7.2zm0 5.9h16v1.8H4v-1.8zm0 5.9h16v1.8H4v-1.8z"/>
+          </svg>
         </button>
         <input id="${SEARCH_INPUT_ID}" class="msp-toolbar__input" type="search"
           placeholder="Zoek verbinding..." aria-label="Zoek verbinding" autocomplete="off"
@@ -669,9 +679,20 @@
     triggerMenuShortcut();
   };
 
+  const goHome = () => {
+    const hash = window.location.hash || "";
+    const [, hashQuery = ""] = hash.split("?");
+    const querySuffix = hashQuery ? `?${hashQuery}` : "";
+    window.location.hash = `#/${querySuffix}`;
+  };
+
   const init = () => {
     if (!document.getElementById(TOOLBAR_ID)) {
       buildToolbar();
+    }
+    const homeButton = document.getElementById(HOME_BUTTON_ID);
+    if (homeButton) {
+      homeButton.addEventListener("click", goHome);
     }
     const button = document.getElementById(MENU_BUTTON_ID);
     if (button) {

@@ -48,6 +48,20 @@
     background-color 120ms ease;
 }
 
+.msp-toolbar__button--icon {
+  width: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.msp-toolbar__icon {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
 .msp-toolbar__button:hover {
   transform: translateY(-1px);
   border-color: var(--msp-border-hover);
