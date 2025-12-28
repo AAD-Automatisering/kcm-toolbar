@@ -81,11 +81,7 @@
     return tokenFromSearch || null;
   };
 
-  const getDataSource = () =>
-    getStorageValue(window.localStorage, ["GUAC_DATA_SOURCE", "guac-data-source", "dataSource"]) ||
-    getStorageValue(window.sessionStorage, ["GUAC_DATA_SOURCE", "guac-data-source", "dataSource"]) ||
-    window.GUAC_DATA_SOURCE ||
-    "postgresql";
+  const getDataSource = () => "postgresql";
 
   const getAuthToken = () =>
     getTokenFromLocation() ||
