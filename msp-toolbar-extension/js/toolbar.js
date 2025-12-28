@@ -2,11 +2,14 @@
   const TOOLBAR_ID = "msp-toolbar";
   const MENU_BUTTON_ID = "msp-toolbar-menu";
   const REVEAL_THRESHOLD = 12;
-  const HIDE_DELAY_MS = 200;
+  const HIDE_DELAY_MS = 1200;
 
   let lastPointerY = Number.POSITIVE_INFINITY;
   let hideTimeoutId = null;
   let isHovering = false;
+
+  const getMenuElement = () =>
+    document.querySelector(".guac-menu.menu") || document.querySelector(".guac-menu");
 
   const buildToolbar = () => {
     const toolbar = document.createElement("div");
@@ -65,6 +68,18 @@
     return /^#\/client(\/|$)/.test(hash);
   };
 
+  const isMenuOpen = () => {
+    const menu = getMenuElement();
+    if (!menu) {
+      return false;
+    }
+    if (menu.classList.contains("open")) {
+      return true;
+    }
+    const rect = menu.getBoundingClientRect();
+    return rect.width > 0 && rect.right > 10 && rect.left >= -10;
+  };
+
   const setRevealed = (reveal) => {
     const toolbar = document.getElementById(TOOLBAR_ID);
     if (!toolbar) {
@@ -83,7 +98,7 @@
   const scheduleHide = () => {
     clearHideTimeout();
     hideTimeoutId = setTimeout(() => {
-      if (!isHovering && isClientRoute()) {
+      if (!isHovering && isClientRoute() && !isMenuOpen()) {
         setRevealed(false);
       }
     }, HIDE_DELAY_MS);
@@ -91,6 +106,11 @@
 
   const handlePointerMove = (event) => {
     if (!isClientRoute()) {
+      return;
+    }
+    if (isMenuOpen()) {
+      clearHideTimeout();
+      setRevealed(true);
       return;
     }
     lastPointerY = event.clientY;
@@ -114,7 +134,7 @@
       setRevealed(false);
       return;
     }
-    if (lastPointerY <= REVEAL_THRESHOLD) {
+    if (isMenuOpen() || lastPointerY <= REVEAL_THRESHOLD) {
       setRevealed(true);
     } else {
       setRevealed(false);
