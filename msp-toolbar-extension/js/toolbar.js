@@ -5,7 +5,6 @@
   const SEARCH_INPUT_ID = "msp-toolbar-search";
   const RESULTS_ID = "msp-toolbar-results";
   const BODY_ACTIVE_CLASS = "msp-toolbar-active";
-  const TOOLBAR_HEIGHT_VAR = "--msp-toolbar-height";
   const MOBILE_MEDIA_QUERY = "(max-width: 900px), (hover: none) and (pointer: coarse)";
   const SEARCH_SUGGEST_MIN = 2;
   const MAX_RESULTS = 8;
@@ -609,11 +608,13 @@
             <path d="M4 7.2h16v1.8H4V7.2zm0 5.9h16v1.8H4v-1.8zm0 5.9h16v1.8H4v-1.8z"/>
           </svg>
         </button>
-        <input id="${SEARCH_INPUT_ID}" class="msp-toolbar__input" type="search"
-          placeholder="Zoek verbinding..." aria-label="Zoek verbinding" autocomplete="off"
-          spellcheck="false">
+        <div class="msp-toolbar__search">
+          <input id="${SEARCH_INPUT_ID}" class="msp-toolbar__input" type="search"
+            placeholder="Zoek verbinding..." aria-label="Zoek verbinding" autocomplete="off"
+            spellcheck="false">
+          <div id="${RESULTS_ID}" class="msp-toolbar__results" role="listbox" hidden></div>
+        </div>
       </div>
-      <div id="${RESULTS_ID}" class="msp-toolbar__results" role="listbox" hidden></div>
     `;
 
     document.body.prepend(toolbar);
@@ -667,24 +668,6 @@
     return !window.matchMedia(MOBILE_MEDIA_QUERY).matches;
   };
 
-  const updateToolbarHeight = () => {
-    const toolbar = document.getElementById(TOOLBAR_ID);
-    if (!toolbar) {
-      return;
-    }
-    const controls = toolbar.querySelector(".msp-toolbar__controls");
-    const style = window.getComputedStyle(toolbar);
-    const paddingTop = parseFloat(style.paddingTop) || 0;
-    const paddingBottom = parseFloat(style.paddingBottom) || 0;
-    const rect = (controls || toolbar).getBoundingClientRect();
-    const height = Math.ceil(rect.height + paddingTop + paddingBottom);
-    document.documentElement.style.setProperty(TOOLBAR_HEIGHT_VAR, `${height}px`);
-  };
-
-  const resetToolbarHeight = () => {
-    document.documentElement.style.setProperty(TOOLBAR_HEIGHT_VAR, "0px");
-  };
-
   const updateVisibility = () => {
     const toolbar = document.getElementById(TOOLBAR_ID);
     if (!toolbar) {
@@ -695,10 +678,8 @@
     document.body.classList.toggle(BODY_ACTIVE_CLASS, visible);
     if (!visible) {
       hideResults();
-      resetToolbarHeight();
       return;
     }
-    updateToolbarHeight();
   };
 
   const toggleMenu = () => {

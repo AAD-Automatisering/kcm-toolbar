@@ -13,8 +13,10 @@
         <path d="M4 7.2h16v1.8H4V7.2zm0 5.9h16v1.8H4v-1.8zm0 5.9h16v1.8H4v-1.8z"/>
       </svg>
     </button>
-    <input id="msp-toolbar-search" class="msp-toolbar__input" type="search" placeholder="Zoek verbinding..."
-      aria-label="Zoek verbinding" autocomplete="off" spellcheck="false">
+    <div class="msp-toolbar__search">
+      <input id="msp-toolbar-search" class="msp-toolbar__input" type="search" placeholder="Zoek verbinding..."
+        aria-label="Zoek verbinding" autocomplete="off" spellcheck="false">
+      <div id="msp-toolbar-results" class="msp-toolbar__results" role="listbox" hidden></div>
+    </div>
   </div>
-  <div id="msp-toolbar-results" class="msp-toolbar__results" role="listbox" hidden></div>
 </div>

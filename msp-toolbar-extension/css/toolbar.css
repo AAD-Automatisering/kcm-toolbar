@@ -16,6 +16,7 @@
   top: 0;
   left: 0;
   right: 0;
+  height: 48px;
   opacity: 1;
   pointer-events: auto;
   z-index: 9999;
@@ -79,6 +80,13 @@
   height: 48px;
 }
 
+.msp-toolbar__search {
+  position: relative;
+  min-width: 200px;
+  width: 30vw;
+  max-width: 320px;
+}
+
 .msp-toolbar__input {
   height: 30px;
   padding: 0 10px;
@@ -88,9 +96,9 @@
   color: var(--msp-text);
   font-size: 14px;
   font-weight: 500;
-  min-width: 200px;
-  width: 30vw;
-  max-width: 320px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   box-shadow: var(--msp-shadow);
   transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
 }
@@ -107,12 +115,16 @@
 }
 
 .msp-toolbar__results {
-  width: min(560px, 92vw);
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
   background: var(--msp-bg);
   border: 1px solid var(--msp-border);
   border-radius: 8px;
   box-shadow: var(--msp-shadow);
   padding: 4px;
+  z-index: 1;
 }
 
 .msp-toolbar__results[hidden] {
@@ -160,6 +172,10 @@ body.msp-toolbar-active #client-view,
 body.msp-toolbar-active #client {
   top: var(--msp-toolbar-height);
   height: calc(100% - var(--msp-toolbar-height));
+}
+
+body.msp-toolbar-active {
+  --msp-toolbar-height: 48px;
 }
 
 @media (max-width: 900px), (hover: none) and (pointer: coarse) {
