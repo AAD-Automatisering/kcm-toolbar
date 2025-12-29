@@ -23,17 +23,17 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px 6px;
+  gap: 4px;
+  padding: 4px 8px 4px;
   background: var(--msp-bg);
   border-bottom: 1px solid var(--msp-border);
   box-shadow: var(--msp-shadow);
 }
 
 .msp-toolbar__button {
-  height: 36px;
-  padding: 0 16px;
-  border-radius: var(--msp-radius);
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
   border: 1px solid var(--msp-border);
   background: var(--msp-bg);
   color: var(--msp-text);
@@ -47,7 +47,7 @@
 }
 
 .msp-toolbar__button--icon {
-  width: 36px;
+  width: 30px;
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -55,8 +55,8 @@
 }
 
 .msp-toolbar__icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   fill: currentColor;
 }
 
@@ -75,21 +75,21 @@
 .msp-toolbar__controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .msp-toolbar__input {
-  height: 36px;
-  padding: 0 12px;
-  border-radius: var(--msp-radius);
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
   border: 1px solid var(--msp-border);
   background: var(--msp-bg);
   color: var(--msp-text);
   font-size: 14px;
   font-weight: 500;
-  min-width: 220px;
-  width: 32vw;
-  max-width: 360px;
+  min-width: 200px;
+  width: 30vw;
+  max-width: 320px;
   box-shadow: var(--msp-shadow);
   transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
 }
@@ -109,9 +109,9 @@
   width: min(560px, 92vw);
   background: var(--msp-bg);
   border: 1px solid var(--msp-border);
-  border-radius: var(--msp-radius);
+  border-radius: 8px;
   box-shadow: var(--msp-shadow);
-  padding: 6px;
+  padding: 4px;
 }
 
 .msp-toolbar__results[hidden] {
@@ -123,8 +123,8 @@
   border: 1px solid transparent;
   background: transparent;
   color: var(--msp-text);
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
   text-align: left;
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease;
@@ -137,20 +137,20 @@
 
 .msp-toolbar__result-title {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
 }
 
 .msp-toolbar__result-path {
   display: block;
   margin-top: 2px;
-  font-size: 12px;
+  font-size: 11px;
   opacity: 0.72;
 }
 
 .msp-toolbar__results-empty {
-  padding: 8px 10px;
-  font-size: 13px;
+  padding: 6px 8px;
+  font-size: 12px;
   opacity: 0.7;
 }
 

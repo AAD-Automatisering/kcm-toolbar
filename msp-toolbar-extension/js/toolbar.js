@@ -258,6 +258,13 @@
     return active && active.id === SEARCH_INPUT_ID;
   };
 
+  const blurSearchInput = () => {
+    const input = document.getElementById(SEARCH_INPUT_ID);
+    if (input && document.activeElement === input) {
+      input.blur();
+    }
+  };
+
   const showResultsMessage = (message) => {
     const results = getResultsElement();
     if (!results) {
@@ -606,6 +613,9 @@
       searchInput.addEventListener("focus", () => {
         void ensureConnectionIndex().catch(() => {});
       });
+      searchInput.addEventListener("blur", () => {
+        setTimeout(hideResults, 0);
+      });
       searchInput.addEventListener("input", () => {
         void updateResults();
       });
@@ -657,6 +667,7 @@
     document.addEventListener("click", (event) => {
       if (toolbar && !toolbar.contains(event.target)) {
         hideResults();
+        blurSearchInput();
       }
     });
   };
