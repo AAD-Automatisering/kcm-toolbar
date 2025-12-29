@@ -253,13 +253,24 @@
 
   const getResultsElement = () => document.getElementById(RESULTS_ID);
 
-  const isSearchFocused = () => {
-    const active = document.activeElement;
-    return active && active.id === SEARCH_INPUT_ID;
+  const getSearchInput = () => document.getElementById(SEARCH_INPUT_ID);
+
+  const isSearchEvent = (event) => {
+    const input = getSearchInput();
+    if (!input) {
+      return false;
+    }
+    if (event && event.target === input) {
+      return true;
+    }
+    if (event && typeof event.composedPath === "function") {
+      return event.composedPath().includes(input);
+    }
+    return document.activeElement === input;
   };
 
   const blurSearchInput = () => {
-    const input = document.getElementById(SEARCH_INPUT_ID);
+    const input = getSearchInput();
     if (input && document.activeElement === input) {
       input.blur();
     }
@@ -451,7 +462,7 @@
   };
 
   const interceptSearchKeys = (event) => {
-    if (!isSearchFocused()) {
+    if (!isSearchEvent(event)) {
       return;
     }
     if (event.type === "keydown") {
@@ -462,15 +473,29 @@
       if (event.key === "Escape") {
         event.preventDefault();
         hideResults();
-        const input = document.getElementById(SEARCH_INPUT_ID);
+        const input = getSearchInput();
         if (input) {
           input.blur();
         }
       }
     }
-    event.stopPropagation();
     event.stopImmediatePropagation();
+    event.stopPropagation();
+    event.cancelBubble = true;
   };
+
+  const bindGlobalKeyInterceptors = (() => {
+    let bound = false;
+    return () => {
+      if (bound) {
+        return;
+      }
+      bound = true;
+      window.addEventListener("keydown", interceptSearchKeys, true);
+      window.addEventListener("keyup", interceptSearchKeys, true);
+      window.addEventListener("keypress", interceptSearchKeys, true);
+    };
+  })();
 
   const buildToolbar = () => {
     const toolbar = document.createElement("div");
@@ -620,9 +645,9 @@
         void updateResults();
       });
       searchInput.addEventListener("keydown", (event) => {
+        event.stopImmediatePropagation();
+        event.stopPropagation();
         if (event.defaultPrevented) {
-          event.stopPropagation();
-          event.stopImmediatePropagation();
           return;
         }
         if (event.key === "Enter") {
@@ -633,8 +658,6 @@
           hideResults();
           searchInput.blur();
         }
-        event.stopPropagation();
-        event.stopImmediatePropagation();
       });
       searchInput.addEventListener("keyup", (event) => {
         event.stopPropagation();
@@ -661,9 +684,6 @@
     window.addEventListener("hashchange", updateVisibility);
     window.addEventListener("popstate", updateVisibility);
     window.addEventListener("resize", updateVisibility);
-    window.addEventListener("keydown", interceptSearchKeys, true);
-    window.addEventListener("keyup", interceptSearchKeys, true);
-    window.addEventListener("keypress", interceptSearchKeys, true);
     document.addEventListener("click", (event) => {
       if (toolbar && !toolbar.contains(event.target)) {
         hideResults();
@@ -673,8 +693,10 @@
   };
 
   if (document.readyState === "loading") {
+    bindGlobalKeyInterceptors();
     document.addEventListener("DOMContentLoaded", init);
   } else {
+    bindGlobalKeyInterceptors();
     init();
   }
 })();
