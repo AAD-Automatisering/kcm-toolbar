@@ -638,7 +638,12 @@
       searchInput.addEventListener("focus", () => {
         void ensureConnectionIndex().catch(() => {});
       });
-      searchInput.addEventListener("blur", () => {
+      searchInput.addEventListener("blur", (event) => {
+        const toolbar = document.getElementById(TOOLBAR_ID);
+        const related = event.relatedTarget;
+        if (toolbar && related && toolbar.contains(related)) {
+          return;
+        }
         setTimeout(hideResults, 0);
       });
       searchInput.addEventListener("input", () => {
@@ -677,6 +682,7 @@
         }
         navigateToConnection(target.dataset.connectionId);
         hideResults();
+        blurSearchInput();
       });
     }
     const toolbar = document.getElementById(TOOLBAR_ID);
