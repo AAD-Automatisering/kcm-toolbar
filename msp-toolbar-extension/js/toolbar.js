@@ -4,23 +4,16 @@
   const HOME_BUTTON_ID = "msp-toolbar-home";
   const SEARCH_INPUT_ID = "msp-toolbar-search";
   const RESULTS_ID = "msp-toolbar-results";
-  const REVEAL_THRESHOLD = 12;
-  const HIDE_DELAY_MS = 2000;
+  const BODY_ACTIVE_CLASS = "msp-toolbar-active";
+  const TOOLBAR_HEIGHT_VAR = "--msp-toolbar-height";
+  const MOBILE_MEDIA_QUERY = "(max-width: 900px), (hover: none) and (pointer: coarse)";
   const SEARCH_SUGGEST_MIN = 2;
   const MAX_RESULTS = 8;
 
-  let lastPointerY = Number.POSITIVE_INFINITY;
-  let hideTimeoutId = null;
-  let isHovering = false;
-  let menuObserver = null;
-  let menuPollId = null;
   let connectionIndex = null;
   let connectionIndexPromise = null;
   let connectionDataSource = null;
   let searchRequestId = 0;
-
-  const getMenuElement = () =>
-    document.querySelector(".guac-menu.menu") || document.querySelector(".guac-menu");
 
   const getAngularInjector = () => {
     const angular = window.angular;
@@ -544,68 +537,29 @@
     return /^#\/client(\/|$)/.test(hash);
   };
 
-  const isMenuOpen = () => {
-    if (document.querySelector(".guac-menu.menu.open")) {
+  const isToolbarAllowed = () => {
+    if (!window.matchMedia) {
       return true;
     }
-    if (document.querySelector(".guac-menu.open") || document.querySelector(".menu.open")) {
-      return true;
-    }
-    if (
-      document.body.classList.contains("menu-open") ||
-      document.body.classList.contains("sidebar-open") ||
-      document.body.classList.contains("side-menu-open")
-    ) {
-      return true;
-    }
-    const menu = getMenuElement();
-    if (!menu) {
-      return false;
-    }
-    const rect = menu.getBoundingClientRect();
-    return rect.width > 0 && rect.right > 10 && rect.left >= -10;
+    return !window.matchMedia(MOBILE_MEDIA_QUERY).matches;
   };
 
-  const setRevealed = (reveal) => {
+  const updateToolbarHeight = () => {
     const toolbar = document.getElementById(TOOLBAR_ID);
     if (!toolbar) {
       return;
     }
-    toolbar.classList.toggle("is-revealed", reveal);
+    const controls = toolbar.querySelector(".msp-toolbar__controls");
+    const style = window.getComputedStyle(toolbar);
+    const paddingTop = parseFloat(style.paddingTop) || 0;
+    const paddingBottom = parseFloat(style.paddingBottom) || 0;
+    const rect = (controls || toolbar).getBoundingClientRect();
+    const height = Math.ceil(rect.height + paddingTop + paddingBottom);
+    document.documentElement.style.setProperty(TOOLBAR_HEIGHT_VAR, `${height}px`);
   };
 
-  const clearHideTimeout = () => {
-    if (hideTimeoutId) {
-      clearTimeout(hideTimeoutId);
-      hideTimeoutId = null;
-    }
-  };
-
-  const scheduleHide = () => {
-    clearHideTimeout();
-    hideTimeoutId = setTimeout(() => {
-      if (!isHovering && isClientRoute() && !isMenuOpen()) {
-        setRevealed(false);
-      }
-    }, HIDE_DELAY_MS);
-  };
-
-  const handlePointerMove = (event) => {
-    if (!isClientRoute()) {
-      return;
-    }
-    if (isMenuOpen()) {
-      clearHideTimeout();
-      setRevealed(true);
-      return;
-    }
-    lastPointerY = event.clientY;
-    if (event.clientY <= REVEAL_THRESHOLD) {
-      clearHideTimeout();
-      setRevealed(true);
-    } else if (!isHovering) {
-      scheduleHide();
-    }
+  const resetToolbarHeight = () => {
+    document.documentElement.style.setProperty(TOOLBAR_HEIGHT_VAR, "0px");
   };
 
   const updateVisibility = () => {
@@ -613,66 +567,15 @@
     if (!toolbar) {
       return;
     }
-    const visible = isClientRoute();
-    toolbar.style.display = visible ? "block" : "none";
-    clearHideTimeout();
+    const visible = isClientRoute() && isToolbarAllowed();
+    toolbar.style.display = visible ? "flex" : "none";
+    document.body.classList.toggle(BODY_ACTIVE_CLASS, visible);
     if (!visible) {
-      setRevealed(false);
       hideResults();
+      resetToolbarHeight();
       return;
     }
-    if (isMenuOpen() || lastPointerY <= REVEAL_THRESHOLD) {
-      setRevealed(true);
-    } else {
-      setRevealed(false);
-    }
-  };
-
-  const syncRevealWithMenu = () => {
-    if (!isClientRoute()) {
-      return;
-    }
-    if (isMenuOpen()) {
-      clearHideTimeout();
-      setRevealed(true);
-      return;
-    }
-    if (!isHovering && lastPointerY > REVEAL_THRESHOLD) {
-      scheduleHide();
-    }
-  };
-
-  const startMenuObserver = () => {
-    const attach = () => {
-      const menu = getMenuElement();
-      if (!menu) {
-        return false;
-      }
-      if (menuObserver) {
-        menuObserver.disconnect();
-      }
-      menuObserver = new MutationObserver(syncRevealWithMenu);
-      menuObserver.observe(menu, { attributes: true, attributeFilter: ["class", "style"] });
-      return true;
-    };
-
-    if (attach()) {
-      return;
-    }
-
-    menuPollId = setInterval(() => {
-      if (attach()) {
-        clearInterval(menuPollId);
-        menuPollId = null;
-      }
-    }, 500);
-
-    setTimeout(() => {
-      if (menuPollId) {
-        clearInterval(menuPollId);
-        menuPollId = null;
-      }
-    }, 10000);
+    updateToolbarHeight();
   };
 
   const toggleMenu = () => {
@@ -744,21 +647,10 @@
       });
     }
     const toolbar = document.getElementById(TOOLBAR_ID);
-    if (toolbar) {
-      toolbar.addEventListener("mouseenter", () => {
-        isHovering = true;
-        clearHideTimeout();
-        setRevealed(true);
-      });
-      toolbar.addEventListener("mouseleave", () => {
-        isHovering = false;
-        scheduleHide();
-      });
-    }
     updateVisibility();
-    startMenuObserver();
     window.addEventListener("hashchange", updateVisibility);
     window.addEventListener("popstate", updateVisibility);
+    window.addEventListener("resize", updateVisibility);
     window.addEventListener("keydown", interceptSearchKeys, true);
     window.addEventListener("keyup", interceptSearchKeys, true);
     window.addEventListener("keypress", interceptSearchKeys, true);
@@ -767,7 +659,6 @@
         hideResults();
       }
     });
-    document.addEventListener("mousemove", handlePointerMove, { passive: true });
   };
 
   if (document.readyState === "loading") {

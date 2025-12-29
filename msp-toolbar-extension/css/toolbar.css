@@ -8,28 +8,26 @@
   --msp-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
   --msp-radius: 10px;
   --msp-font: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --msp-toolbar-height: 0px;
 }
 
 .msp-toolbar {
   position: fixed;
-  top: 8px;
-  left: 50%;
-  transform: translate(-50%, -8px);
-  opacity: 0;
-  pointer-events: none;
+  top: 0;
+  left: 0;
+  right: 0;
+  opacity: 1;
+  pointer-events: auto;
   z-index: 9999;
   font-family: var(--msp-font);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  transition: opacity 160ms ease, transform 160ms ease;
-}
-
-.msp-toolbar.is-revealed {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate(-50%, 0);
+  padding: 8px 12px 6px;
+  background: var(--msp-bg);
+  border-bottom: 1px solid var(--msp-border);
+  box-shadow: var(--msp-shadow);
 }
 
 .msp-toolbar__button {
@@ -154,6 +152,13 @@
   padding: 8px 10px;
   font-size: 13px;
   opacity: 0.7;
+}
+
+body.msp-toolbar-active .client-view,
+body.msp-toolbar-active #client-view,
+body.msp-toolbar-active #client {
+  top: var(--msp-toolbar-height);
+  height: calc(100% - var(--msp-toolbar-height));
 }
 
 @media (max-width: 900px), (hover: none) and (pointer: coarse) {
