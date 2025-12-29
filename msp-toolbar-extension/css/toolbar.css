@@ -93,6 +93,8 @@
   border: 1px solid var(--msp-border);
   background: var(--msp-bg);
   color: var(--msp-text);
+  appearance: none;
+  -webkit-appearance: none;
   font-size: 14px;
   font-weight: 500;
   width: 100%;
@@ -111,6 +113,31 @@
   border-color: var(--msp-border-hover);
   background: var(--msp-bg-hover);
   box-shadow: 0 0 0 3px rgba(120, 180, 255, 0.22), var(--msp-shadow);
+}
+
+.msp-toolbar__input::-webkit-search-decoration,
+.msp-toolbar__input::-webkit-search-results-button,
+.msp-toolbar__input::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+}
+
+.msp-toolbar__input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-left: 6px;
+  cursor: pointer;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23f2f2f2' stroke-width='1.5' stroke-linecap='round'><path d='M3 3l6 6M9 3L3 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 12px 12px;
+  opacity: 0.8;
+}
+
+.msp-toolbar__input::-webkit-search-cancel-button:hover {
+  opacity: 1;
 }
 
 .msp-toolbar__results {
