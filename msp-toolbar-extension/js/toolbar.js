@@ -11,7 +11,6 @@
 
   let connectionIndex = null;
   let connectionIndexPromise = null;
-  let connectionDataSource = null;
   let searchRequestId = 0;
 
   const getAngularInjector = () => {
@@ -93,18 +92,6 @@
       token = token.replace(/^bearer\s+/i, "");
     }
     return token || null;
-  };
-
-  const getTokenFromLocation = () => {
-    const hash = window.location.hash || "";
-    const hashQuery = hash.includes("?") ? hash.slice(hash.indexOf("?") + 1) : "";
-    const searchQuery = window.location.search ? window.location.search.slice(1) : "";
-    const tokenFromHash = normalizeToken(new URLSearchParams(hashQuery).get("token"));
-    if (tokenFromHash) {
-      return tokenFromHash;
-    }
-    const tokenFromSearch = normalizeToken(new URLSearchParams(searchQuery).get("token"));
-    return tokenFromSearch || null;
   };
 
   const getTokenFromApp = () => {
@@ -236,7 +223,6 @@
     if (connectionIndexPromise) {
       return connectionIndexPromise;
     }
-    connectionDataSource = getDataSource();
     connectionIndexPromise = requestConnectionTree()
       .then((tree) => {
         const treeRoot = tree && tree.data ? tree.data : tree;
@@ -375,24 +361,10 @@
       .replace(/[+/=]/g, (char) => ({ "+": "-", "/": "_", "=": "" }[char]));
   };
 
-  const getAppDataSource = (injector) => {
-    if (injector) {
-      try {
-        const authService = injector.get("authenticationService");
-        if (authService && typeof authService.getDataSource === "function") {
-          return authService.getDataSource() || getDataSource();
-        }
-      } catch (error) {
-        // Ignore and fall back to local storage.
-      }
-    }
-    return getDataSource();
-  };
-
   const buildClientIdentifier = (connectionId) => {
     const id = String(connectionId);
     const injector = getAngularInjector();
-    const dataSource = connectionDataSource || getDataSource() || getAppDataSource(injector);
+    const dataSource = getDataSource();
     if (injector) {
       try {
         const ClientIdentifier = injector.get("ClientIdentifier");
