@@ -32,6 +32,39 @@
     }
   };
 
+  const getAngularScope = () => {
+    const angular = window.angular;
+    if (!angular || !angular.element) {
+      return null;
+    }
+    const rootElement =
+      document.querySelector("[ng-controller]") ||
+      document.querySelector("[ng-app]") ||
+      document.body ||
+      document.documentElement ||
+      null;
+    if (!rootElement) {
+      return null;
+    }
+    try {
+      return angular.element(rootElement).scope() || null;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const getAngularRootScope = () => {
+    const injector = getAngularInjector();
+    if (!injector) {
+      return null;
+    }
+    try {
+      return injector.get("$rootScope") || null;
+    } catch (error) {
+      return null;
+    }
+  };
+
   const normalizeToken = (value) => {
     if (!value) {
       return null;
@@ -254,6 +287,11 @@
   const getResultsElement = () => document.getElementById(RESULTS_ID);
 
   const getSearchInput = () => document.getElementById(SEARCH_INPUT_ID);
+
+  const isSearchFocused = () => {
+    const input = getSearchInput();
+    return input && document.activeElement === input;
+  };
 
   const isSearchEvent = (event) => {
     const input = getSearchInput();
@@ -484,6 +522,59 @@
     event.cancelBubble = true;
   };
 
+  const guacKeyFilterTargets = new WeakSet();
+  let guacKeyFiltersAttached = false;
+  let guacKeyFilterTimerId = null;
+
+  const attachGuacKeyFilters = () => {
+    if (guacKeyFiltersAttached) {
+      return true;
+    }
+    let attached = false;
+    [getAngularScope(), getAngularRootScope()].forEach((target) => {
+      if (!target || typeof target.$on !== "function" || guacKeyFilterTargets.has(target)) {
+        return;
+      }
+      guacKeyFilterTargets.add(target);
+      attached = true;
+      target.$on("guacBeforeKeydown", (event) => {
+        if (isSearchFocused()) {
+          event.preventDefault();
+        }
+      });
+      target.$on("guacBeforeKeyup", (event) => {
+        if (isSearchFocused()) {
+          event.preventDefault();
+        }
+      });
+    });
+    if (attached) {
+      guacKeyFiltersAttached = true;
+    }
+    return attached;
+  };
+
+  const ensureGuacKeyFilters = () => {
+    if (attachGuacKeyFilters()) {
+      if (guacKeyFilterTimerId) {
+        clearInterval(guacKeyFilterTimerId);
+        guacKeyFilterTimerId = null;
+      }
+      return;
+    }
+    if (guacKeyFilterTimerId) {
+      return;
+    }
+    let attempts = 0;
+    guacKeyFilterTimerId = setInterval(() => {
+      attempts += 1;
+      if (attachGuacKeyFilters() || attempts >= 20) {
+        clearInterval(guacKeyFilterTimerId);
+        guacKeyFilterTimerId = null;
+      }
+    }, 500);
+  };
+
   const bindGlobalKeyInterceptors = (() => {
     let bound = false;
     return () => {
@@ -637,6 +728,7 @@
     if (searchInput) {
       searchInput.addEventListener("focus", () => {
         void ensureConnectionIndex().catch(() => {});
+        ensureGuacKeyFilters();
       });
       searchInput.addEventListener("blur", (event) => {
         const toolbar = document.getElementById(TOOLBAR_ID);
@@ -691,6 +783,7 @@
     }
     const toolbar = document.getElementById(TOOLBAR_ID);
     updateVisibility();
+    ensureGuacKeyFilters();
     window.addEventListener("hashchange", updateVisibility);
     window.addEventListener("popstate", updateVisibility);
     window.addEventListener("resize", updateVisibility);
