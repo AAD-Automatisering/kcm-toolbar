@@ -24,7 +24,7 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px 4px;
+  padding: 0 8px;
   background: var(--msp-bg);
   border-bottom: 1px solid var(--msp-border);
   box-shadow: none;
@@ -76,6 +76,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  height: 48px;
 }
 
 .msp-toolbar__input {

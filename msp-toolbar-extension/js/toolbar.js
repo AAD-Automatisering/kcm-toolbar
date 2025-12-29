@@ -681,6 +681,10 @@
           return;
         }
         navigateToConnection(target.dataset.connectionId);
+        const input = getSearchInput();
+        if (input) {
+          input.value = "";
+        }
         hideResults();
         blurSearchInput();
       });
