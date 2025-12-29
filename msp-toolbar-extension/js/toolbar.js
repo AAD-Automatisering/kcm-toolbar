@@ -299,6 +299,14 @@
     }
   };
 
+  const clearSearchInput = () => {
+    const input = getSearchInput();
+    if (input) {
+      input.value = "";
+    }
+    hideResults();
+  };
+
   const showResultsMessage = (message) => {
     const results = getResultsElement();
     if (!results) {
@@ -655,10 +663,12 @@
   };
 
   const toggleMenu = () => {
+    clearSearchInput();
     triggerMenuShortcut();
   };
 
   const goHome = () => {
+    clearSearchInput();
     const hash = window.location.hash || "";
     const [, hashQuery = ""] = hash.split("?");
     const querySuffix = hashQuery ? `?${hashQuery}` : "";
@@ -726,11 +736,7 @@
           return;
         }
         navigateToConnection(target.dataset.connectionId);
-        const input = getSearchInput();
-        if (input) {
-          input.value = "";
-        }
-        hideResults();
+        clearSearchInput();
         blurSearchInput();
       });
     }
