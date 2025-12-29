@@ -27,7 +27,7 @@
   padding: 4px 8px 4px;
   background: var(--msp-bg);
   border-bottom: 1px solid var(--msp-border);
-  box-shadow: var(--msp-shadow);
+  box-shadow: none;
 }
 
 .msp-toolbar__button {
