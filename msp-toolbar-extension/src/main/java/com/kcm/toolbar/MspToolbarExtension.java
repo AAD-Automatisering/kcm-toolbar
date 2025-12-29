@@ -1,4 +1,4 @@
-package com.aad.kcm;
+package com.kcm.toolbar;
 
 import org.apache.guacamole.extension.GuacamoleExtension;
 
