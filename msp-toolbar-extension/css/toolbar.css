@@ -426,8 +426,6 @@ body.msp-toolbar-tabs-visible {
   }
 }
 
-@media (min-width: 901px) {
-  #other-connections > div {
-    display: none !important;
-  }
+.msp-toolbar-active #other-connections > div {
+  display: none !important;
 }
