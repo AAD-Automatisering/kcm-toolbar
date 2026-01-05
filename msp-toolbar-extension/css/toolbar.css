@@ -404,6 +404,13 @@
   outline: none;
 }
 
+@media (min-width: 901px) {
+  #content > div > div > div:nth-child(1) > section.navigation,
+  #content > div > div > div:nth-child(1) > div {
+    display: none !important;
+  }
+}
+
 @media (max-width: 1400px) {
   .msp-toolbar__tab {
     min-width: 100px;

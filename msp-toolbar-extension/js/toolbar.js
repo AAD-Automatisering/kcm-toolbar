@@ -1010,6 +1010,10 @@
     setTabBarVisibility(tabs.length > 0);
     const snapshot = JSON.stringify(tabs);
     if (!tabs.length) {
+      const list = getTabListElement();
+      if (list) {
+        list.innerHTML = "";
+      }
       tabSnapshot = "";
       updateToolbarHeight();
       return;
