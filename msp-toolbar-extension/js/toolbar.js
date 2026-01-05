@@ -336,23 +336,41 @@
     }
     results.innerHTML = "";
     matches.forEach((match) => {
-      const item = document.createElement("button");
-      item.type = "button";
+      const item = document.createElement("div");
       item.className = "msp-toolbar__result";
       item.dataset.connectionId = match.id;
+
+      const mainButton = document.createElement("button");
+      mainButton.type = "button";
+      mainButton.className = "msp-toolbar__result-main";
+      mainButton.dataset.connectionId = match.id;
 
       const title = document.createElement("span");
       title.className = "msp-toolbar__result-title";
       title.textContent = match.name;
-      item.appendChild(title);
+      mainButton.appendChild(title);
 
       if (match.groupPath) {
         const path = document.createElement("span");
         path.className = "msp-toolbar__result-path";
         path.textContent = match.groupPath;
-        item.appendChild(path);
+        mainButton.appendChild(path);
       }
 
+      const openButton = document.createElement("button");
+      openButton.type = "button";
+      openButton.className = "msp-toolbar__result-open";
+      openButton.dataset.connectionId = match.id;
+      openButton.setAttribute("aria-label", `Open ${match.name} in nieuw tabblad`);
+      openButton.innerHTML = `
+        <svg class="msp-toolbar__result-open-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path d="M6 14h8V6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M6 6h8M6 14l8-8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      `;
+
+      item.appendChild(mainButton);
+      item.appendChild(openButton);
       results.appendChild(item);
     });
     results.hidden = matches.length === 0;
@@ -407,8 +425,20 @@
     return `#/client/${clientIdentifier}${querySuffix}`;
   };
 
-  const navigateToConnection = (connectionId) => {
+  const buildClientUrl = (connectionId) => {
+    const targetHash = buildClientHash(connectionId);
+    const { origin, pathname, search } = window.location;
+    return `${origin}${pathname}${search}${targetHash}`;
+  };
+
+  const navigateToConnection = (connectionId, options = {}) => {
     if (!connectionId) {
+      return;
+    }
+    const { openInNewTab = false } = options;
+    if (openInNewTab) {
+      const targetUrl = buildClientUrl(connectionId);
+      window.open(targetUrl, "_blank", "noopener");
       return;
     }
     const targetHash = buildClientHash(connectionId);
@@ -446,7 +476,8 @@
     renderResults(matches);
   };
 
-  const performSearch = async (openFirst) => {
+  const performSearch = async (openFirst, options = {}) => {
+    const { openInNewTab = false } = options;
     const input = document.getElementById(SEARCH_INPUT_ID);
     if (!input) {
       return;
@@ -471,12 +502,17 @@
       return;
     }
     if (openFirst) {
-      navigateToConnection(matches[0].id);
-      hideResults();
+      navigateToConnection(matches[0].id, { openInNewTab });
+      if (!openInNewTab) {
+        hideResults();
+      }
       return;
     }
     renderResults(matches);
   };
+
+  const shouldOpenInNewTab = (event) =>
+    !!(event && (event.ctrlKey || event.metaKey || event.altKey || event.button === 1));
 
   const interceptSearchKeys = (event) => {
     if (!isSearchEvent(event)) {
@@ -485,7 +521,7 @@
     if (event.type === "keydown") {
       if (event.key === "Enter") {
         event.preventDefault();
-        void performSearch(true);
+        void performSearch(true, { openInNewTab: shouldOpenInNewTab(event) });
       }
       if (event.key === "Escape") {
         event.preventDefault();
@@ -712,7 +748,7 @@
         }
         if (event.key === "Enter") {
           event.preventDefault();
-          void performSearch(true);
+          void performSearch(true, { openInNewTab: shouldOpenInNewTab(event) });
         }
         if (event.key === "Escape") {
           hideResults();
@@ -730,15 +766,21 @@
     }
     const results = document.getElementById(RESULTS_ID);
     if (results) {
-      results.addEventListener("click", (event) => {
+      const handleResultClick = (event) => {
         const target = event.target.closest("[data-connection-id]");
         if (!target) {
           return;
         }
-        navigateToConnection(target.dataset.connectionId);
-        clearSearchInput();
-        blurSearchInput();
-      });
+        const openButtonClicked = event.target.closest(".msp-toolbar__result-open");
+        const openInNewTab = openButtonClicked ? true : shouldOpenInNewTab(event);
+        navigateToConnection(target.dataset.connectionId, { openInNewTab });
+        if (!openInNewTab) {
+          clearSearchInput();
+          blurSearchInput();
+        }
+      };
+      results.addEventListener("click", handleResultClick);
+      results.addEventListener("auxclick", handleResultClick);
     }
     const toolbar = document.getElementById(TOOLBAR_ID);
     updateVisibility();
