@@ -7,7 +7,7 @@
   --msp-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
   --msp-radius: 10px;
   --msp-font: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  --msp-toolbar-base-height: 48px;
+  --msp-toolbar-base-height: 38px;
   --msp-toolbar-height: 0px;
   --msp-tabbar-height: 0px;
 }
@@ -319,7 +319,7 @@ body.msp-toolbar-tabs-visible .msp-toolbar__tabs {
   border: 1px solid var(--msp-border);
   background: var(--msp-bg);
   color: var(--msp-text);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.1px;
   cursor: pointer;
