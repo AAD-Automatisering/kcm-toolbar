@@ -289,7 +289,7 @@ body.msp-toolbar-tabs-visible .msp-toolbar__tabs {
 .msp-toolbar__tabs-list {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
   height: 100%;
   padding: 3px 8px;
   overflow-x: auto;
