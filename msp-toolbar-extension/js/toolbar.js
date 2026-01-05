@@ -764,6 +764,11 @@
     return !window.matchMedia(MOBILE_MEDIA_QUERY).matches;
   };
 
+  const isLoginRoute = () => {
+    const hash = window.location.hash || "";
+    return /^#\/login/.test(hash);
+  };
+
   const getActiveGroupIdFromHash = () => {
     const hash = window.location.hash || "";
     const match = hash.match(/^#\/client\/([^?]+)/);
@@ -1054,7 +1059,7 @@
     if (!toolbar) {
       return;
     }
-    const visible = isToolbarAllowed();
+    const visible = isToolbarAllowed() && !isLoginRoute();
     toolbar.style.display = visible ? "flex" : "none";
     document.body.classList.toggle(BODY_ACTIVE_CLASS, visible);
     if (!visible) {
