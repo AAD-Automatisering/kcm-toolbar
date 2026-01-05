@@ -1029,8 +1029,9 @@
   };
 
   const syncTabBar = () => {
-    const toolbarVisible = isToolbarAllowed();
+    const toolbarVisible = isToolbarAllowed() && !isLoginRoute() && isAuthenticated();
     if (!toolbarVisible) {
+      stopTabSync();
       tabSnapshot = "";
       setTabBarVisibility(false);
       updateToolbarHeight();
