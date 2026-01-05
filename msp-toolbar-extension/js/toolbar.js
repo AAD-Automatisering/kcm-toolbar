@@ -8,7 +8,7 @@
   const RESULTS_ID = "msp-toolbar-results";
   const BODY_ACTIVE_CLASS = "msp-toolbar-active";
   const TAB_BAR_ID = "msp-toolbar-tabs";
-  const TAB_LIST_CLASS = "msp-toolbar__tabs-list";
+  const TAB_LIST_CLASS = "msp-toolbar__tabs-inline";
   const MOBILE_MEDIA_QUERY = "(max-width: 900px), (hover: none) and (pointer: coarse)";
   const SEARCH_SUGGEST_MIN = 2;
   const MAX_RESULTS = 8;
@@ -704,7 +704,14 @@
           </svg>
         </button>
       </div>
+      <div id="${TAB_BAR_ID}" class="${TAB_LIST_CLASS}" role="navigation" aria-label="Open verbindingen" hidden></div>
     `;
+
+    const tabBar = toolbar.querySelector(`#${TAB_BAR_ID}`);
+    if (tabBar) {
+      tabBar.addEventListener("click", handleTabInteraction);
+      tabBar.addEventListener("auxclick", handleTabInteraction);
+    }
 
     document.body.prepend(toolbar);
   };
@@ -822,7 +829,7 @@
     if (!bar) {
       return null;
     }
-    return bar.querySelector(`.${TAB_LIST_CLASS}`);
+    return bar;
   };
 
   const orderTabs = (tabs) => {
@@ -852,7 +859,6 @@
     }
     bar.hidden = !visible;
     bar.setAttribute("aria-hidden", visible ? "false" : "true");
-    document.body.classList.toggle("msp-toolbar-tabs-visible", !!visible);
   };
 
   const renderTabBar = (tabs) => {
@@ -991,6 +997,7 @@
     if (!toolbarVisible) {
       tabSnapshot = "";
       setTabBarVisibility(false);
+      updateToolbarHeight();
       return;
     }
     const tabs = orderTabs(buildTabModels());
@@ -998,13 +1005,16 @@
     const snapshot = JSON.stringify(tabs);
     if (!tabs.length) {
       tabSnapshot = "";
+      updateToolbarHeight();
       return;
     }
     if (snapshot === tabSnapshot) {
+      updateToolbarHeight();
       return;
     }
     tabSnapshot = snapshot;
     renderTabBar(tabs);
+    updateToolbarHeight();
   };
 
   const startTabSync = () => {
@@ -1015,24 +1025,15 @@
     syncTabBar();
   };
 
-  const buildTabBar = () => {
-    if (document.getElementById(TAB_BAR_ID)) {
+  const updateToolbarHeight = () => {
+    const toolbar = document.getElementById(TOOLBAR_ID);
+    if (!toolbar) {
       return;
     }
-    const bar = document.createElement("div");
-    bar.id = TAB_BAR_ID;
-    bar.className = "msp-toolbar__tabs";
-    bar.setAttribute("role", "navigation");
-    bar.setAttribute("aria-label", "Open verbindingen");
-
-    const list = document.createElement("div");
-    list.className = TAB_LIST_CLASS;
-    bar.appendChild(list);
-
-    bar.addEventListener("click", handleTabInteraction);
-    bar.addEventListener("auxclick", handleTabInteraction);
-
-    document.body.appendChild(bar);
+    const height = Math.round(toolbar.getBoundingClientRect().height);
+    if (height > 0) {
+      document.body.style.setProperty("--msp-toolbar-height", `${height}px`);
+    }
   };
 
   const updateVisibility = () => {
@@ -1044,11 +1045,13 @@
     toolbar.style.display = visible ? "flex" : "none";
     document.body.classList.toggle(BODY_ACTIVE_CLASS, visible);
     if (!visible) {
+      document.body.style.setProperty("--msp-toolbar-height", "0px");
       hideResults();
       syncTabBar();
       return;
     }
     syncTabBar();
+    updateToolbarHeight();
   };
 
   const toggleMenu = () => {
@@ -1083,9 +1086,6 @@
   const init = () => {
     if (!document.getElementById(TOOLBAR_ID)) {
       buildToolbar();
-    }
-    if (!document.getElementById(TAB_BAR_ID)) {
-      buildTabBar();
     }
     const homeButton = document.getElementById(HOME_BUTTON_ID);
     if (homeButton) {
