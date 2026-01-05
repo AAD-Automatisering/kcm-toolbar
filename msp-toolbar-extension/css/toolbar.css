@@ -190,6 +190,8 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .msp-toolbar__result-title {
@@ -222,12 +224,14 @@
   flex-shrink: 0;
   box-sizing: border-box;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .msp-toolbar__result-open:hover,
 .msp-toolbar__result-open:focus-visible {
   background: transparent;
-  border-color: var(--msp-border-hover);
+  border-color: var(--msp-border);
 }
 
 .msp-toolbar__result-open:focus-visible {
