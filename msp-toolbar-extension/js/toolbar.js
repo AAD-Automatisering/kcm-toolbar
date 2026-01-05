@@ -138,7 +138,8 @@
           injector,
           guacClientManager: injector.get("guacClientManager"),
           ManagedClientGroup: injector.get("ManagedClientGroup"),
-          ManagedClientState: injector.get("ManagedClientState")
+          ManagedClientState: injector.get("ManagedClientState"),
+          authenticationService: injector.get("authenticationService")
         };
         return cache;
       } catch (error) {
@@ -1076,11 +1077,13 @@
 
   const logout = async () => {
     clearSearchInput();
-    const apiRoot = getApiRoot();
-    try {
-      await fetch(`${apiRoot}/api/session`, { method: "DELETE", credentials: "same-origin" });
-    } catch (error) {
-      // Ignore logout errors; a reload will show current state.
+    const services = getGuacServices();
+    if (services && services.authenticationService) {
+      try {
+        await services.authenticationService.logout();
+      } catch (error) {
+        // Ignore logout errors; reload to reflect state.
+      }
     }
     window.location.reload();
   };
