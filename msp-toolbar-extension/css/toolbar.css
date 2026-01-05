@@ -226,7 +226,7 @@
 
 .msp-toolbar__result-open:hover,
 .msp-toolbar__result-open:focus-visible {
-  background: var(--msp-bg-hover);
+  background: transparent;
   border-color: var(--msp-border-hover);
 }
 
