@@ -821,7 +821,19 @@
     ) {
       return !!services.authenticationService.getCurrentToken();
     }
-    return !!getAuthToken();
+    if (
+      services &&
+      services.authenticationService &&
+      typeof services.authenticationService.isAuthenticated === "function"
+    ) {
+      return !!services.authenticationService.isAuthenticated();
+    }
+    const token = getAuthToken();
+    if (token !== null && token !== undefined) {
+      return !!token;
+    }
+    // If we cannot determine auth state, default to visible; login route check still hides it.
+    return true;
   };
 
   const getActiveGroupIdFromHash = () => {
