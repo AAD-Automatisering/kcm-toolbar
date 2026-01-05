@@ -12,6 +12,14 @@
   --msp-tabbar-height: 0px;
 }
 
+.msp-toolbar input[type="submit"],
+.msp-toolbar button,
+.msp-toolbar a.button,
+.msp-toolbar__tabs button,
+.msp-toolbar__tabs a.button {
+  margin: 1px;
+}
+
 .msp-toolbar {
   position: fixed;
   top: 0;
