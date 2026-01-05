@@ -1085,7 +1085,7 @@
         // Ignore logout errors; reload to reflect state.
       }
     }
-    window.location.reload();
+    window.location.hash = "#/login";
   };
 
   const goHome = () => {
