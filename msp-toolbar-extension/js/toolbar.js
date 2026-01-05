@@ -956,9 +956,6 @@
     const snapshot = JSON.stringify(tabs);
     if (!tabs.length) {
       tabSnapshot = "";
-      if (isClientRoute()) {
-        goHome();
-      }
       return;
     }
     if (snapshot === tabSnapshot) {
