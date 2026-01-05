@@ -312,8 +312,8 @@ body.msp-toolbar-tabs-visible .msp-toolbar__tabs {
   gap: 0px;
   height: 30px;
   min-width: 80px;
-  max-width: 180px;
-  flex: 0 1 180px;
+  max-width: 200px;
+  flex: 0 1 auto;
   padding: 0 8px 0 8px;
   border-radius: 10px;
   border: 1px solid var(--msp-border);
@@ -370,6 +370,7 @@ body.msp-toolbar-tabs-visible .msp-toolbar__tabs {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .msp-toolbar__tab-close {
