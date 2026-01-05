@@ -1071,7 +1071,7 @@
     if (!toolbar) {
       return;
     }
-    const visible = isToolbarAllowed() && !isLoginRoute() && isAuthenticated();
+    const visible = isToolbarAllowed() && !isLoginRoute();
     toolbar.style.display = visible ? "flex" : "none";
     document.body.classList.toggle(BODY_ACTIVE_CLASS, visible);
     if (!visible) {
