@@ -48,11 +48,15 @@
 
 .msp-toolbar__button--icon {
   width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
   aspect-ratio: 1 / 1;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
 }
 
 .msp-toolbar__icon {
@@ -203,7 +207,9 @@
 
 .msp-toolbar__result-open {
   width: 28px;
+  min-width: 28px;
   height: 28px;
+  min-height: 28px;
   aspect-ratio: 1 / 1;
   display: inline-flex;
   align-items: center;
@@ -214,6 +220,7 @@
   color: var(--msp-text);
   cursor: pointer;
   flex-shrink: 0;
+  box-sizing: border-box;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
@@ -231,6 +238,10 @@
 .msp-toolbar__result-open-icon {
   width: 16px;
   height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  display: block;
+  flex-shrink: 0;
 }
 
 .msp-toolbar__results-empty {
