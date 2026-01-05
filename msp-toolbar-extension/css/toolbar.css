@@ -10,7 +10,6 @@
   --msp-toolbar-base-height: 48px;
   --msp-toolbar-height: 0px;
   --msp-tabbar-height: 0px;
-  --msp-tabbar-gap: 0px;
 }
 
 .msp-toolbar {
@@ -273,14 +272,12 @@
 
 .msp-toolbar__tabs {
   position: fixed;
-  top: calc(var(--msp-toolbar-base-height) + var(--msp-tabbar-gap));
+  top: var(--msp-toolbar-base-height);
   left: 0;
   right: 0;
   height: var(--msp-tabbar-height);
   background: var(--msp-bg);
-  border-top: 1px solid var(--msp-border);
-  border-bottom: 1px solid var(--msp-border);
-  box-shadow: var(--msp-shadow);
+  box-shadow: none;
   display: none;
   z-index: 9998;
 }
@@ -292,9 +289,9 @@ body.msp-toolbar-tabs-visible .msp-toolbar__tabs {
 .msp-toolbar__tabs-list {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   height: 100%;
-  padding: 4px 8px;
+  padding: 3px 8px;
   overflow-x: auto;
   overflow-y: hidden;
   box-sizing: border-box;
@@ -305,11 +302,11 @@ body.msp-toolbar-tabs-visible .msp-toolbar__tabs {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 100%;
-  min-width: 120px;
-  max-width: 240px;
-  flex: 0 1 220px;
-  padding: 0 10px 0 12px;
+  height: 30px;
+  min-width: 108px;
+  max-width: 220px;
+  flex: 0 1 200px;
+  padding: 0 10px 0 10px;
   border-radius: 10px;
   border: 1px solid var(--msp-border);
   background: var(--msp-bg);
@@ -366,9 +363,9 @@ body.msp-toolbar-tabs-visible .msp-toolbar__tabs {
 }
 
 .msp-toolbar__tab-close {
-  width: 20px;
-  height: 20px;
-  margin-left: 6px;
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
   border-radius: 6px;
   border: 1px solid var(--msp-border);
   background: transparent;
@@ -393,8 +390,8 @@ body.msp-toolbar-tabs-visible .msp-toolbar__tabs {
 
 @media (max-width: 1400px) {
   .msp-toolbar__tab {
-    min-width: 110px;
-    flex: 0 1 180px;
+    min-width: 100px;
+    flex: 0 1 170px;
     font-size: 12px;
   }
 }
@@ -408,13 +405,12 @@ body.msp-toolbar-active #client {
 
 body.msp-toolbar-active {
   --msp-toolbar-height: calc(
-    var(--msp-toolbar-base-height) + var(--msp-tabbar-gap) + var(--msp-tabbar-height)
+    var(--msp-toolbar-base-height) + var(--msp-tabbar-height)
   );
 }
 
 body.msp-toolbar-tabs-visible {
-  --msp-tabbar-height: 36px;
-  --msp-tabbar-gap: 6px;
+  --msp-tabbar-height: 34px;
 }
 
 @media (max-width: 900px), (hover: none) and (pointer: coarse) {
