@@ -673,7 +673,8 @@
 
     toolbar.innerHTML = `
       <div class="msp-toolbar__controls">
-        <button id="${HOME_BUTTON_ID}" class="msp-toolbar__button msp-toolbar__button--icon" type="button"
+        <div class="msp-toolbar__controls-left">
+          <button id="${HOME_BUTTON_ID}" class="msp-toolbar__button msp-toolbar__button--icon" type="button"
           aria-label="Naar dashboard">
           <svg class="msp-toolbar__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="M12 3.2 3.5 10v10.2h6.2v-6.1h4.6v6.1h6.2V10L12 3.2zM18.6 18.2h-2.2v-6.1H7.6v6.1H5.4v-7.2L12 5.9l6.6 5.1v7.2z"/>
@@ -691,6 +692,9 @@
             spellcheck="false">
           <div id="${RESULTS_ID}" class="msp-toolbar__results" role="listbox" hidden></div>
         </div>
+          <div id="${TAB_BAR_ID}" class="${TAB_LIST_CLASS}" role="navigation" aria-label="Open verbindingen" hidden></div>
+        </div>
+        <div class="msp-toolbar__controls-right">
         <button id="${SETTINGS_BUTTON_ID}" class="msp-toolbar__button msp-toolbar__button--icon" type="button"
           aria-label="Open sessie-instellingen">
           <svg class="msp-toolbar__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -703,8 +707,8 @@
             <path d="M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5v-2H5V5h5V3Zm9.71 8.29-3-3-1.42 1.42L16.59 11H9v2h7.59l-1.3 1.29 1.42 1.42 3-3a1 1 0 0 0 0-1.42Z"/>
           </svg>
         </button>
+        </div>
       </div>
-      <div id="${TAB_BAR_ID}" class="${TAB_LIST_CLASS}" role="navigation" aria-label="Open verbindingen" hidden></div>
     `;
 
     const tabBar = toolbar.querySelector(`#${TAB_BAR_ID}`);
@@ -949,6 +953,7 @@
 
     if (!remainingIds.length) {
       goHome();
+      syncTabBar();
       return;
     }
     const orderedRemaining = previousOrder.filter((id) => remainingIds.includes(id));
@@ -966,6 +971,7 @@
     if (shouldSwitch && nextId) {
       navigateToClientGroup(nextId, { openInNewTab: false });
     }
+    syncTabBar();
   };
 
   const handleTabInteraction = (event) => {
