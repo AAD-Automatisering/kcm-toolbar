@@ -769,6 +769,18 @@
     return /^#\/login/.test(hash);
   };
 
+  const isAuthenticated = () => {
+    const services = getGuacServices();
+    if (
+      services &&
+      services.authenticationService &&
+      typeof services.authenticationService.getCurrentToken === "function"
+    ) {
+      return !!services.authenticationService.getCurrentToken();
+    }
+    return !!getAuthToken();
+  };
+
   const getActiveGroupIdFromHash = () => {
     const hash = window.location.hash || "";
     const match = hash.match(/^#\/client\/([^?]+)/);
@@ -1059,7 +1071,7 @@
     if (!toolbar) {
       return;
     }
-    const visible = isToolbarAllowed() && !isLoginRoute();
+    const visible = isToolbarAllowed() && !isLoginRoute() && isAuthenticated();
     toolbar.style.display = visible ? "flex" : "none";
     document.body.classList.toggle(BODY_ACTIVE_CLASS, visible);
     if (!visible) {
@@ -1089,10 +1101,17 @@
       try {
         await services.authenticationService.logout();
       } catch (error) {
-        // Ignore logout errors; reload to reflect state.
+        // Ignore logout errors; visibility will update based on auth state.
       }
     }
-    window.location.hash = "#/login";
+    tabOrder = [];
+    tabSnapshot = "";
+    const list = getTabListElement();
+    if (list) {
+      list.innerHTML = "";
+    }
+    setTabBarVisibility(false);
+    updateVisibility();
   };
 
   const goHome = () => {
