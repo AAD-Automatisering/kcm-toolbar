@@ -303,9 +303,9 @@ body.msp-toolbar-tabs-visible .msp-toolbar__tabs {
   align-items: center;
   gap: 8px;
   height: 30px;
-  min-width: 88px;
-  max-width: 150px;
-  flex: 0 1 150px;
+  min-width: 80px;
+  max-width: 200px;
+  flex: 0 1 auto;
   padding: 0 8px 0 8px;
   border-radius: 10px;
   border: 1px solid var(--msp-border);
@@ -343,9 +343,10 @@ body.msp-toolbar-tabs-visible .msp-toolbar__tabs {
 
 .msp-toolbar__tab-name {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100px;
+  margin-right: 2px;
 }
 
 .msp-toolbar__tab-count {
