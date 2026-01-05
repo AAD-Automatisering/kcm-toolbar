@@ -48,6 +48,7 @@
 
 .msp-toolbar__button--icon {
   width: 30px;
+  aspect-ratio: 1 / 1;
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -203,6 +204,7 @@
 .msp-toolbar__result-open {
   width: 28px;
   height: 28px;
+  aspect-ratio: 1 / 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -227,8 +229,8 @@
 }
 
 .msp-toolbar__result-open-icon {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
 }
 
 .msp-toolbar__results-empty {
