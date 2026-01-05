@@ -14,12 +14,19 @@
   const MAX_RESULTS = 8;
   const TAB_SYNC_INTERVAL = 1000;
 
+  let toolbarElement = null;
   let connectionIndex = null;
   let connectionIndexPromise = null;
   let searchRequestId = 0;
   let tabSyncIntervalId = null;
   let tabSnapshot = "";
   let tabOrder = [];
+
+  const resetConnectionIndexState = () => {
+    connectionIndex = null;
+    connectionIndexPromise = null;
+    searchRequestId = 0;
+  };
 
   const getAngularInjector = () => {
     const angular = window.angular;
@@ -118,7 +125,28 @@
     return null;
   };
 
-  const getDataSource = () => "postgresql";
+  const getDataSource = () => {
+    const services = getGuacServices();
+    const auth = services && services.authenticationService;
+    const fromAuth =
+      (auth && typeof auth.getDataSource === "function" && auth.getDataSource()) ||
+      (auth && auth.dataSource);
+    if (fromAuth) {
+      return String(fromAuth);
+    }
+    const injector = services && services.injector;
+    try {
+      const injectorDataSource =
+        (injector && injector.get && (injector.get("dataSource") || injector.get("DATA_SOURCE"))) ||
+        null;
+      if (injectorDataSource) {
+        return String(injectorDataSource);
+      }
+    } catch (error) {
+      // Ignore injector lookup failures.
+    }
+    return "postgresql";
+  };
 
   const getAuthToken = () => getTokenFromApp();
 
@@ -157,20 +185,12 @@
     return path.replace(/\/$/, "");
   };
 
-  const buildApiUrl = (options = {}) => {
-    const includeToken = options.includeToken !== false;
+  const buildApiUrl = () => {
     const dataSource = getDataSource();
     const apiRoot = getApiRoot();
-    const basePath = `${apiRoot}/api/session/data/${encodeURIComponent(
+    return `${apiRoot}/api/session/data/${encodeURIComponent(
       dataSource
     )}/connectionGroups/ROOT/tree`;
-    const token = getAuthToken();
-    if (!token || !includeToken) {
-      return basePath;
-    }
-    const url = new URL(basePath, window.location.origin);
-    url.searchParams.set("token", token);
-    return url.toString();
   };
 
   const normalizeToArray = (value) => {
@@ -231,9 +251,11 @@
     return results;
   };
 
-  const fetchConnectionTree = async (includeToken) => {
-    const url = buildApiUrl({ includeToken });
-    const response = await fetch(url, { credentials: "same-origin" });
+  const fetchConnectionTree = async () => {
+    const url = buildApiUrl();
+    const token = getAuthToken();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const response = await fetch(url, { credentials: "same-origin", headers });
     if (!response.ok) {
       const error = new Error(`HTTP ${response.status}`);
       error.status = response.status;
@@ -242,17 +264,7 @@
     return response.json();
   };
 
-  const requestConnectionTree = async () => {
-    const token = getAuthToken();
-    try {
-      return await fetchConnectionTree(false);
-    } catch (error) {
-      if (token && (error.status === 401 || error.status === 403)) {
-        return fetchConnectionTree(true);
-      }
-      throw error;
-    }
-  };
+  const requestConnectionTree = async () => fetchConnectionTree();
 
   const ensureConnectionIndex = () => {
     if (connectionIndexPromise) {
@@ -265,6 +277,7 @@
         return connectionIndex;
       })
       .catch((error) => {
+        connectionIndex = null;
         connectionIndexPromise = null;
         throw error;
       });
@@ -576,6 +589,20 @@
   const shouldOpenInNewTab = (event) =>
     !!(event && (event.ctrlKey || event.metaKey || event.altKey || event.button === 1));
 
+  const debounce = (fn, delay = 200) => {
+    let timeoutId = null;
+    return (...args) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = window.setTimeout(() => fn(...args), delay);
+    };
+  };
+
+  const debouncedUpdateResults = debounce(() => {
+    void updateResults();
+  }, 200);
+
   const interceptSearchKeys = (event) => {
     if (!isSearchEvent(event)) {
       return;
@@ -599,9 +626,16 @@
     event.cancelBubble = true;
   };
 
-  const guacKeyFilterTargets = new WeakSet();
+  let guacKeyFilterTargets = new WeakSet();
   let guacKeyFiltersAttached = false;
   let guacKeyFilterTimerId = null;
+
+  const stopGuacKeyFilterTimer = () => {
+    if (guacKeyFilterTimerId) {
+      clearInterval(guacKeyFilterTimerId);
+      guacKeyFilterTimerId = null;
+    }
+  };
 
   const attachGuacKeyFilters = () => {
     if (guacKeyFiltersAttached) {
@@ -633,10 +667,7 @@
 
   const ensureGuacKeyFilters = () => {
     if (attachGuacKeyFilters()) {
-      if (guacKeyFilterTimerId) {
-        clearInterval(guacKeyFilterTimerId);
-        guacKeyFilterTimerId = null;
-      }
+      stopGuacKeyFilterTimer();
       return;
     }
     if (guacKeyFilterTimerId) {
@@ -646,22 +677,33 @@
     guacKeyFilterTimerId = setInterval(() => {
       attempts += 1;
       if (attachGuacKeyFilters() || attempts >= 20) {
-        clearInterval(guacKeyFilterTimerId);
-        guacKeyFilterTimerId = null;
+        stopGuacKeyFilterTimer();
       }
     }, 500);
   };
 
-  const bindGlobalKeyInterceptors = (() => {
+  const globalKeyInterceptors = (() => {
     let bound = false;
-    return () => {
-      if (bound) {
-        return;
+    const handler = interceptSearchKeys;
+    return {
+      bind() {
+        if (bound) {
+          return;
+        }
+        bound = true;
+        window.addEventListener("keydown", handler, true);
+        window.addEventListener("keyup", handler, true);
+        window.addEventListener("keypress", handler, true);
+      },
+      unbind() {
+        if (!bound) {
+          return;
+        }
+        window.removeEventListener("keydown", handler, true);
+        window.removeEventListener("keyup", handler, true);
+        window.removeEventListener("keypress", handler, true);
+        bound = false;
       }
-      bound = true;
-      window.addEventListener("keydown", interceptSearchKeys, true);
-      window.addEventListener("keyup", interceptSearchKeys, true);
-      window.addEventListener("keypress", interceptSearchKeys, true);
     };
   })();
 
@@ -718,6 +760,7 @@
       tabBar.addEventListener("auxclick", handleTabInteraction);
     }
 
+    toolbarElement = toolbar;
     document.body.prepend(toolbar);
   };
 
@@ -1053,6 +1096,46 @@
     syncTabBar();
   };
 
+  const stopTabSync = () => {
+    if (tabSyncIntervalId) {
+      clearInterval(tabSyncIntervalId);
+      tabSyncIntervalId = null;
+    }
+  };
+
+  let lifecycleListenersBound = false;
+  const handleHashChange = () => updateVisibility();
+  const handlePopState = () => updateVisibility();
+  const handleResize = () => updateVisibility();
+  const handleDocumentClick = (event) => {
+    if (toolbarElement && !toolbarElement.contains(event.target)) {
+      hideResults();
+      blurSearchInput();
+    }
+  };
+
+  const bindLifecycleListeners = () => {
+    if (lifecycleListenersBound) {
+      return;
+    }
+    window.addEventListener("hashchange", handleHashChange);
+    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("resize", handleResize);
+    document.addEventListener("click", handleDocumentClick);
+    lifecycleListenersBound = true;
+  };
+
+  const unbindLifecycleListeners = () => {
+    if (!lifecycleListenersBound) {
+      return;
+    }
+    window.removeEventListener("hashchange", handleHashChange);
+    window.removeEventListener("popstate", handlePopState);
+    window.removeEventListener("resize", handleResize);
+    document.removeEventListener("click", handleDocumentClick);
+    lifecycleListenersBound = false;
+  };
+
   const updateToolbarHeight = () => {
     const toolbar = document.getElementById(TOOLBAR_ID);
     if (!toolbar) {
@@ -1071,15 +1154,21 @@
     if (!toolbar) {
       return;
     }
-    const visible = isToolbarAllowed() && !isLoginRoute();
+    const visible = isToolbarAllowed() && !isLoginRoute() && isAuthenticated();
     toolbar.style.display = visible ? "flex" : "none";
     document.body.classList.toggle(BODY_ACTIVE_CLASS, visible);
     if (!visible) {
+      resetConnectionIndexState();
+      stopTabSync();
+      globalKeyInterceptors.unbind();
+      stopGuacKeyFilterTimer();
       document.body.style.setProperty("--msp-toolbar-height", "0px");
       hideResults();
       syncTabBar();
       return;
     }
+    globalKeyInterceptors.bind();
+    startTabSync();
     syncTabBar();
     updateToolbarHeight();
   };
@@ -1096,6 +1185,7 @@
 
   const logout = async () => {
     clearSearchInput();
+    resetConnectionIndexState();
     const services = getGuacServices();
     if (services && services.authenticationService) {
       try {
@@ -1110,6 +1200,12 @@
     if (list) {
       list.innerHTML = "";
     }
+    stopTabSync();
+    stopGuacKeyFilterTimer();
+    guacKeyFilterTargets = new WeakSet();
+    guacKeyFiltersAttached = false;
+    globalKeyInterceptors.unbind();
+    unbindLifecycleListeners();
     setTabBarVisibility(false);
     updateVisibility();
   };
@@ -1158,7 +1254,7 @@
         setTimeout(hideResults, 0);
       });
       searchInput.addEventListener("input", () => {
-        void updateResults();
+        debouncedUpdateResults();
       });
       searchInput.addEventListener("keydown", (event) => {
         event.stopImmediatePropagation();
@@ -1203,25 +1299,17 @@
       results.addEventListener("auxclick", handleResultClick);
     }
     const toolbar = document.getElementById(TOOLBAR_ID);
+    toolbarElement = toolbar;
     updateVisibility();
     ensureGuacKeyFilters();
-    startTabSync();
-    window.addEventListener("hashchange", updateVisibility);
-    window.addEventListener("popstate", updateVisibility);
-    window.addEventListener("resize", updateVisibility);
-    document.addEventListener("click", (event) => {
-      if (toolbar && !toolbar.contains(event.target)) {
-        hideResults();
-        blurSearchInput();
-      }
-    });
+    bindLifecycleListeners();
   };
 
   if (document.readyState === "loading") {
-    bindGlobalKeyInterceptors();
+    globalKeyInterceptors.bind();
     document.addEventListener("DOMContentLoaded", init);
   } else {
-    bindGlobalKeyInterceptors();
+    globalKeyInterceptors.bind();
     init();
   }
 })();
