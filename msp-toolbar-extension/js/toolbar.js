@@ -5,13 +5,18 @@
   const SEARCH_INPUT_ID = "msp-toolbar-search";
   const RESULTS_ID = "msp-toolbar-results";
   const BODY_ACTIVE_CLASS = "msp-toolbar-active";
+  const TAB_BAR_ID = "msp-toolbar-tabs";
+  const TAB_LIST_CLASS = "msp-toolbar__tabs-list";
   const MOBILE_MEDIA_QUERY = "(max-width: 900px), (hover: none) and (pointer: coarse)";
   const SEARCH_SUGGEST_MIN = 2;
   const MAX_RESULTS = 8;
+  const TAB_SYNC_INTERVAL = 1000;
 
   let connectionIndex = null;
   let connectionIndexPromise = null;
   let searchRequestId = 0;
+  let tabSyncIntervalId = null;
+  let tabSnapshot = "";
 
   const getAngularInjector = () => {
     const angular = window.angular;
@@ -113,6 +118,32 @@
   const getDataSource = () => "postgresql";
 
   const getAuthToken = () => getTokenFromApp();
+
+  const getGuacServices = (() => {
+    let cache = null;
+    return () => {
+      const injector = getAngularInjector();
+      if (!injector) {
+        cache = null;
+        return null;
+      }
+      if (cache && cache.injector === injector) {
+        return cache;
+      }
+      try {
+        cache = {
+          injector,
+          guacClientManager: injector.get("guacClientManager"),
+          ManagedClientGroup: injector.get("ManagedClientGroup"),
+          ManagedClientState: injector.get("ManagedClientState")
+        };
+        return cache;
+      } catch (error) {
+        cache = null;
+        return null;
+      }
+    };
+  })();
 
   const getApiRoot = () => {
     const path = window.location.pathname || "";
@@ -430,6 +461,16 @@
     return `${origin}${pathname}${search}${targetHash}`;
   };
 
+  const buildClientGroupHash = (groupId) => {
+    if (!groupId) {
+      return null;
+    }
+    const hash = window.location.hash || "";
+    const [, hashQuery = ""] = hash.split("?");
+    const querySuffix = hashQuery ? `?${hashQuery}` : "";
+    return `#/client/${groupId}${querySuffix}`;
+  };
+
   const navigateToConnection = (connectionId, options = {}) => {
     if (!connectionId) {
       return;
@@ -441,6 +482,24 @@
       return;
     }
     const targetHash = buildClientHash(connectionId);
+    window.location.hash = targetHash;
+  };
+
+  const navigateToClientGroup = (groupId, options = {}) => {
+    if (!groupId) {
+      return;
+    }
+    const { openInNewTab = false } = options;
+    const targetHash = buildClientGroupHash(groupId);
+    if (!targetHash) {
+      return;
+    }
+    if (openInNewTab) {
+      const { origin, pathname, search } = window.location;
+      const targetUrl = `${origin}${pathname}${search}${targetHash}`;
+      window.open(targetUrl, "_blank", "noopener");
+      return;
+    }
     window.location.hash = targetHash;
   };
 
@@ -683,6 +742,236 @@
     return !window.matchMedia(MOBILE_MEDIA_QUERY).matches;
   };
 
+  const getActiveGroupIdFromHash = () => {
+    const hash = window.location.hash || "";
+    const match = hash.match(/^#\/client\/([^?]+)/);
+    return match && match[1] ? match[1] : null;
+  };
+
+  const hasClientStatusUpdate = (clients, ManagedClientState) => {
+    if (!ManagedClientState || !ManagedClientState.ConnectionState || !Array.isArray(clients)) {
+      return false;
+    }
+    const { ConnectionState } = ManagedClientState;
+    return clients.some((client) => {
+      const state = client && client.clientState && client.clientState.connectionState;
+      return (
+        state === ConnectionState.CONNECTION_ERROR ||
+        state === ConnectionState.CLIENT_ERROR ||
+        state === ConnectionState.TUNNEL_ERROR ||
+        state === ConnectionState.DISCONNECTED
+      );
+    });
+  };
+
+  const buildTabModels = () => {
+    const services = getGuacServices();
+    if (
+      !services ||
+      !services.guacClientManager ||
+      typeof services.guacClientManager.getManagedClientGroups !== "function"
+    ) {
+      return [];
+    }
+    const groups = services.guacClientManager.getManagedClientGroups() || [];
+    if (!Array.isArray(groups) || !groups.length) {
+      return [];
+    }
+    const activeGroupId = getActiveGroupIdFromHash();
+    return groups
+      .map((group) => {
+        if (!group) {
+          return null;
+        }
+        const id =
+          services.ManagedClientGroup && typeof services.ManagedClientGroup.getIdentifier === "function"
+            ? services.ManagedClientGroup.getIdentifier(group)
+            : group.id || "";
+        if (!id) {
+          return null;
+        }
+        const title =
+          services.ManagedClientGroup && typeof services.ManagedClientGroup.getTitle === "function"
+            ? services.ManagedClientGroup.getTitle(group)
+            : group.title || group.name || id;
+        const clients = Array.isArray(group.clients) ? group.clients : [];
+        const clientCount = clients.length || 0;
+        const needsAttention = hasClientStatusUpdate(clients, services.ManagedClientState);
+        const lastUsed = typeof group.lastUsed === "number" ? group.lastUsed : 0;
+        const attached = !!group.attached || id === activeGroupId;
+
+        return { id, title, clientCount, needsAttention, lastUsed, attached };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        if (a.attached !== b.attached) {
+          return a.attached ? -1 : 1;
+        }
+        if (a.lastUsed !== b.lastUsed) {
+          return b.lastUsed - a.lastUsed;
+        }
+        return a.title.localeCompare(b.title);
+      });
+  };
+
+  const getTabBarElement = () => document.getElementById(TAB_BAR_ID);
+
+  const getTabListElement = () => {
+    const bar = getTabBarElement();
+    if (!bar) {
+      return null;
+    }
+    return bar.querySelector(`.${TAB_LIST_CLASS}`);
+  };
+
+  const setTabBarVisibility = (visible) => {
+    const bar = getTabBarElement();
+    if (!bar) {
+      return;
+    }
+    bar.hidden = !visible;
+    bar.setAttribute("aria-hidden", visible ? "false" : "true");
+    document.body.classList.toggle("msp-toolbar-tabs-visible", !!visible);
+  };
+
+  const renderTabBar = (tabs) => {
+    const list = getTabListElement();
+    if (!list) {
+      return;
+    }
+    list.innerHTML = "";
+    if (!tabs.length) {
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    tabs.forEach((tab) => {
+      const tabEl = document.createElement("button");
+      tabEl.type = "button";
+      tabEl.className = "msp-toolbar__tab";
+      if (tab.attached) {
+        tabEl.classList.add("is-active");
+      }
+      if (tab.needsAttention) {
+        tabEl.classList.add("needs-attention");
+      }
+      tabEl.dataset.groupId = tab.id;
+
+      const name = document.createElement("span");
+      name.className = "msp-toolbar__tab-name";
+      name.textContent = tab.title;
+      tabEl.appendChild(name);
+
+      if (tab.clientCount > 1) {
+        const count = document.createElement("span");
+        count.className = "msp-toolbar__tab-count";
+        count.textContent = String(tab.clientCount);
+        tabEl.appendChild(count);
+      }
+
+      const close = document.createElement("button");
+      close.type = "button";
+      close.className = "msp-toolbar__tab-close";
+      close.setAttribute("aria-label", `Verbreek ${tab.title}`);
+      close.textContent = "x";
+      tabEl.appendChild(close);
+
+      fragment.appendChild(tabEl);
+    });
+    list.appendChild(fragment);
+  };
+
+  const disconnectClientGroup = (groupId) => {
+    if (!groupId) {
+      return;
+    }
+    const services = getGuacServices();
+    if (
+      !services ||
+      !services.guacClientManager ||
+      typeof services.guacClientManager.removeManagedClientGroup !== "function"
+    ) {
+      return;
+    }
+    try {
+      services.guacClientManager.removeManagedClientGroup(groupId);
+    } catch (error) {
+      // Ignore disconnect errors.
+    }
+  };
+
+  const handleTabInteraction = (event) => {
+    const tab = event.target.closest(".msp-toolbar__tab");
+    if (!tab) {
+      return;
+    }
+    const groupId = tab.dataset.groupId;
+    if (!groupId) {
+      return;
+    }
+    const closeClicked = event.target.closest(".msp-toolbar__tab-close");
+    if (closeClicked) {
+      event.preventDefault();
+      event.stopPropagation();
+      disconnectClientGroup(groupId);
+      return;
+    }
+    const openInNewTab = shouldOpenInNewTab(event);
+    navigateToClientGroup(groupId, { openInNewTab });
+    if (!openInNewTab) {
+      clearSearchInput();
+      blurSearchInput();
+    }
+  };
+
+  const syncTabBar = () => {
+    const toolbarVisible = isToolbarAllowed();
+    if (!toolbarVisible) {
+      tabSnapshot = "";
+      setTabBarVisibility(false);
+      return;
+    }
+    const tabs = buildTabModels();
+    setTabBarVisibility(tabs.length > 0);
+    const snapshot = JSON.stringify(tabs);
+    if (!tabs.length) {
+      tabSnapshot = "";
+      return;
+    }
+    if (snapshot === tabSnapshot) {
+      return;
+    }
+    tabSnapshot = snapshot;
+    renderTabBar(tabs);
+  };
+
+  const startTabSync = () => {
+    if (tabSyncIntervalId) {
+      return;
+    }
+    tabSyncIntervalId = setInterval(syncTabBar, TAB_SYNC_INTERVAL);
+    syncTabBar();
+  };
+
+  const buildTabBar = () => {
+    if (document.getElementById(TAB_BAR_ID)) {
+      return;
+    }
+    const bar = document.createElement("div");
+    bar.id = TAB_BAR_ID;
+    bar.className = "msp-toolbar__tabs";
+    bar.setAttribute("role", "navigation");
+    bar.setAttribute("aria-label", "Open verbindingen");
+
+    const list = document.createElement("div");
+    list.className = TAB_LIST_CLASS;
+    bar.appendChild(list);
+
+    bar.addEventListener("click", handleTabInteraction);
+    bar.addEventListener("auxclick", handleTabInteraction);
+
+    document.body.appendChild(bar);
+  };
+
   const updateVisibility = () => {
     const toolbar = document.getElementById(TOOLBAR_ID);
     if (!toolbar) {
@@ -693,8 +982,10 @@
     document.body.classList.toggle(BODY_ACTIVE_CLASS, visible);
     if (!visible) {
       hideResults();
+      syncTabBar();
       return;
     }
+    syncTabBar();
   };
 
   const toggleMenu = () => {
@@ -713,6 +1004,9 @@
   const init = () => {
     if (!document.getElementById(TOOLBAR_ID)) {
       buildToolbar();
+    }
+    if (!document.getElementById(TAB_BAR_ID)) {
+      buildTabBar();
     }
     const homeButton = document.getElementById(HOME_BUTTON_ID);
     if (homeButton) {
@@ -785,6 +1079,7 @@
     const toolbar = document.getElementById(TOOLBAR_ID);
     updateVisibility();
     ensureGuacKeyFilters();
+    startTabSync();
     window.addEventListener("hashchange", updateVisibility);
     window.addEventListener("popstate", updateVisibility);
     window.addEventListener("resize", updateVisibility);

@@ -7,7 +7,10 @@
   --msp-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
   --msp-radius: 10px;
   --msp-font: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --msp-toolbar-base-height: 48px;
   --msp-toolbar-height: 0px;
+  --msp-tabbar-height: 0px;
+  --msp-tabbar-gap: 0px;
 }
 
 .msp-toolbar {
@@ -15,7 +18,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 48px;
+  height: var(--msp-toolbar-base-height);
   opacity: 1;
   pointer-events: auto;
   z-index: 9999;
@@ -81,7 +84,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 48px;
+  height: var(--msp-toolbar-base-height);
 }
 
 .msp-toolbar__search {
@@ -268,6 +271,134 @@
   opacity: 1;
 }
 
+.msp-toolbar__tabs {
+  position: fixed;
+  top: calc(var(--msp-toolbar-base-height) + var(--msp-tabbar-gap));
+  left: 0;
+  right: 0;
+  height: var(--msp-tabbar-height);
+  background: var(--msp-bg);
+  border-top: 1px solid var(--msp-border);
+  border-bottom: 1px solid var(--msp-border);
+  box-shadow: var(--msp-shadow);
+  display: none;
+  z-index: 9998;
+}
+
+body.msp-toolbar-tabs-visible .msp-toolbar__tabs {
+  display: block;
+}
+
+.msp-toolbar__tabs-list {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 4px 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  box-sizing: border-box;
+}
+
+.msp-toolbar__tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  min-width: 120px;
+  max-width: 240px;
+  flex: 0 1 220px;
+  padding: 0 10px 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--msp-border);
+  background: var(--msp-bg);
+  color: var(--msp-text);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  cursor: pointer;
+  box-shadow: var(--msp-shadow);
+  transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.msp-toolbar__tab:hover {
+  transform: translateY(-1px);
+  border-color: var(--msp-border-hover);
+  background: var(--msp-bg-hover);
+}
+
+.msp-toolbar__tab:active {
+  transform: translateY(0);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.22);
+}
+
+.msp-toolbar__tab.is-active {
+  border-color: var(--msp-border-hover);
+  background: var(--msp-bg-hover);
+}
+
+.msp-toolbar__tab.needs-attention {
+  box-shadow: 0 0 0 2px rgba(255, 112, 112, 0.35), var(--msp-shadow);
+}
+
+.msp-toolbar__tab-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.msp-toolbar__tab-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--msp-border);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--msp-text);
+  font-size: 11px;
+  line-height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.msp-toolbar__tab-close {
+  width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--msp-border);
+  background: transparent;
+  color: var(--msp-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.msp-toolbar__tab-close:hover,
+.msp-toolbar__tab-close:focus-visible {
+  border-color: var(--msp-border-hover);
+  background: var(--msp-bg-hover);
+  outline: none;
+}
+
+@media (max-width: 1400px) {
+  .msp-toolbar__tab {
+    min-width: 110px;
+    flex: 0 1 180px;
+    font-size: 12px;
+  }
+}
+
 body.msp-toolbar-active .client-view,
 body.msp-toolbar-active #client-view,
 body.msp-toolbar-active #client {
@@ -276,11 +407,21 @@ body.msp-toolbar-active #client {
 }
 
 body.msp-toolbar-active {
-  --msp-toolbar-height: 48px;
+  --msp-toolbar-height: calc(
+    var(--msp-toolbar-base-height) + var(--msp-tabbar-gap) + var(--msp-tabbar-height)
+  );
+}
+
+body.msp-toolbar-tabs-visible {
+  --msp-tabbar-height: 36px;
+  --msp-tabbar-gap: 6px;
 }
 
 @media (max-width: 900px), (hover: none) and (pointer: coarse) {
   .msp-toolbar {
+    display: none !important;
+  }
+  .msp-toolbar__tabs {
     display: none !important;
   }
 }
