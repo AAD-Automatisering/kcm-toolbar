@@ -1041,11 +1041,12 @@
     if (!toolbar) {
       return;
     }
-    const height = Math.round(toolbar.getBoundingClientRect().height);
-    if (height > 0) {
-      document.body.style.setProperty("--msp-toolbar-height", `${height}px`);
-      toolbar.style.height = `${height}px`;
-    }
+    const baseHeight =
+      getComputedStyle(document.documentElement).getPropertyValue("--msp-toolbar-base-height") ||
+      "48px";
+    const height = baseHeight.trim() || "48px";
+    document.body.style.setProperty("--msp-toolbar-height", height);
+    toolbar.style.height = height;
   };
 
   const updateVisibility = () => {

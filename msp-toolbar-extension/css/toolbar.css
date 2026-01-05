@@ -26,15 +26,16 @@
   right: 0;
   height: var(--msp-toolbar-base-height);
   min-height: var(--msp-toolbar-base-height);
+  box-sizing: border-box;
   opacity: 1;
   pointer-events: auto;
   z-index: 9999;
   font-family: var(--msp-font);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   gap: 2px;
-  padding: 4px 8px;
+  padding: 0 8px;
   background: var(--msp-bg);
   border-bottom: none;
   box-shadow: none;
@@ -302,7 +303,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-top: 4px;
+  margin-top: 0;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 0;
