@@ -434,6 +434,9 @@ body.msp-toolbar-tabs-visible {
   }
 }
 
-.msp-toolbar-active #other-connections > div {
-  display: none !important;
+@media (min-width: 901px) {
+  body:not(.msp-toolbar-active) #other-connections,
+  .msp-toolbar-active #other-connections > div {
+    display: none !important;
+  }
 }
