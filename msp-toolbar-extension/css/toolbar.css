@@ -425,3 +425,9 @@ body.msp-toolbar-tabs-visible {
     display: none !important;
   }
 }
+
+@media (min-width: 901px) {
+  #other-connections > div {
+    display: none !important;
+  }
+}

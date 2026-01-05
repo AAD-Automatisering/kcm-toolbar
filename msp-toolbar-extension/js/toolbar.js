@@ -17,6 +17,7 @@
   let searchRequestId = 0;
   let tabSyncIntervalId = null;
   let tabSnapshot = "";
+  let tabOrder = [];
 
   const getAngularInjector = () => {
     const angular = window.angular;
@@ -802,16 +803,7 @@
 
         return { id, title, clientCount, needsAttention, lastUsed, attached };
       })
-      .filter(Boolean)
-      .sort((a, b) => {
-        if (a.attached !== b.attached) {
-          return a.attached ? -1 : 1;
-        }
-        if (a.lastUsed !== b.lastUsed) {
-          return b.lastUsed - a.lastUsed;
-        }
-        return a.title.localeCompare(b.title);
-      });
+      .filter(Boolean);
   };
 
   const getTabBarElement = () => document.getElementById(TAB_BAR_ID);
@@ -822,6 +814,26 @@
       return null;
     }
     return bar.querySelector(`.${TAB_LIST_CLASS}`);
+  };
+
+  const orderTabs = (tabs) => {
+    if (!tabs.length) {
+      tabOrder = [];
+      return tabs;
+    }
+    const ids = tabs.map((tab) => tab.id);
+    tabOrder = tabOrder.filter((id) => ids.includes(id));
+    ids.forEach((id) => {
+      if (!tabOrder.includes(id)) {
+        tabOrder.push(id);
+      }
+    });
+    const orderMap = new Map(tabOrder.map((id, index) => [id, index]));
+    return tabs.slice().sort((a, b) => {
+      const indexA = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+      const indexB = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+      return indexA - indexB;
+    });
   };
 
   const setTabBarVisibility = (visible) => {
@@ -897,6 +909,15 @@
     } catch (error) {
       // Ignore disconnect errors.
     }
+    const remaining =
+      (services &&
+        services.guacClientManager &&
+        typeof services.guacClientManager.getManagedClientGroups === "function" &&
+        services.guacClientManager.getManagedClientGroups()) ||
+      [];
+    if (!remaining.length && isClientRoute()) {
+      goHome();
+    }
   };
 
   const handleTabInteraction = (event) => {
@@ -930,11 +951,14 @@
       setTabBarVisibility(false);
       return;
     }
-    const tabs = buildTabModels();
+    const tabs = orderTabs(buildTabModels());
     setTabBarVisibility(tabs.length > 0);
     const snapshot = JSON.stringify(tabs);
     if (!tabs.length) {
       tabSnapshot = "";
+      if (isClientRoute()) {
+        goHome();
+      }
       return;
     }
     if (snapshot === tabSnapshot) {
