@@ -183,7 +183,7 @@
 
 .msp-toolbar__result-main {
   flex: 1;
-  background: none;
+  background: transparent;
   border: none;
   padding: 0;
   margin: 0;
@@ -192,6 +192,18 @@
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
+  box-shadow: none;
+}
+
+.msp-toolbar__result-main:hover,
+.msp-toolbar__result-main:focus,
+.msp-toolbar__result-main:focus-visible,
+.msp-toolbar__result-main:active {
+  background: transparent !important;
+  color: inherit;
+  outline: none;
+  box-shadow: none;
+  border: none;
 }
 
 .msp-toolbar__result-title {
@@ -226,12 +238,13 @@
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
   appearance: none;
   -webkit-appearance: none;
+  outline: none;
 }
 
 .msp-toolbar__result-open:hover,
 .msp-toolbar__result-open:focus-visible {
   background: transparent;
-  border-color: var(--msp-border);
+  border-color: var(--msp-border-hover);
 }
 
 .msp-toolbar__result-open:focus-visible {
