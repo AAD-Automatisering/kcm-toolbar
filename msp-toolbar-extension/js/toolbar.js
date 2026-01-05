@@ -904,19 +904,52 @@
     ) {
       return;
     }
+    const previousOrder = tabOrder.slice();
+    const activeGroupId = getActiveGroupIdFromHash();
     try {
       services.guacClientManager.removeManagedClientGroup(groupId);
     } catch (error) {
       // Ignore disconnect errors.
     }
-    const remaining =
-      (services &&
-        services.guacClientManager &&
-        typeof services.guacClientManager.getManagedClientGroups === "function" &&
-        services.guacClientManager.getManagedClientGroups()) ||
-      [];
-    if (!remaining.length && isClientRoute()) {
+    const remainingGroups =
+      typeof services.guacClientManager.getManagedClientGroups === "function"
+        ? services.guacClientManager.getManagedClientGroups() || []
+        : [];
+    const remainingIds = remainingGroups
+      .map((group) => {
+        if (!group) {
+          return null;
+        }
+        if (
+          services.ManagedClientGroup &&
+          typeof services.ManagedClientGroup.getIdentifier === "function"
+        ) {
+          return services.ManagedClientGroup.getIdentifier(group);
+        }
+        return group.id || null;
+      })
+      .filter(Boolean);
+
+    tabOrder = tabOrder.filter((id) => remainingIds.includes(id));
+
+    if (!remainingIds.length && isClientRoute()) {
       goHome();
+      return;
+    }
+    const orderedRemaining = previousOrder.filter((id) => remainingIds.includes(id));
+    const closedIndex = previousOrder.indexOf(groupId);
+    let nextId = orderedRemaining[0] || remainingIds[0] || null;
+    if (closedIndex !== -1) {
+      const nextAfterClosed = orderedRemaining.find(
+        (id) => previousOrder.indexOf(id) > closedIndex
+      );
+      if (nextAfterClosed) {
+        nextId = nextAfterClosed;
+      }
+    }
+    const shouldSwitch = groupId === activeGroupId || !remainingIds.includes(activeGroupId);
+    if (shouldSwitch && nextId) {
+      navigateToClientGroup(nextId, { openInNewTab: false });
     }
   };
 
