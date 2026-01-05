@@ -2,6 +2,8 @@
   const TOOLBAR_ID = "msp-toolbar";
   const MENU_BUTTON_ID = "msp-toolbar-menu";
   const HOME_BUTTON_ID = "msp-toolbar-home";
+  const SETTINGS_BUTTON_ID = "msp-toolbar-settings";
+  const LOGOUT_BUTTON_ID = "msp-toolbar-logout";
   const SEARCH_INPUT_ID = "msp-toolbar-search";
   const RESULTS_ID = "msp-toolbar-results";
   const BODY_ACTIVE_CLASS = "msp-toolbar-active";
@@ -689,6 +691,18 @@
             spellcheck="false">
           <div id="${RESULTS_ID}" class="msp-toolbar__results" role="listbox" hidden></div>
         </div>
+        <button id="${SETTINGS_BUTTON_ID}" class="msp-toolbar__button msp-toolbar__button--icon" type="button"
+          aria-label="Open sessie-instellingen">
+          <svg class="msp-toolbar__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 8.5c-1.93 0-3.5 1.57-3.5 3.5s1.57 3.5 3.5 3.5 3.5-1.57 3.5-3.5S13.93 8.5 12 8.5Zm8.94 2.2-1.87-.29c-.14-.43-.33-.83-.56-1.21l1.12-1.55c.18-.25.15-.6-.07-.82l-1.49-1.49c-.22-.22-.57-.25-.82-.07l-1.55 1.12c-.38-.23-.78-.42-1.21-.56l-.29-1.87A.75.75 0 0 0 12.5 4h-2a.75.75 0 0 0-.74.63l-.29 1.87c-.43.14-.83.33-1.21.56L6.71 5.94a.75.75 0 0 0-.82.07L4.4 7.5c-.22.22-.25.57-.07.82l1.12 1.55c-.23.38-.42.78-.56 1.21l-1.87.29A.75.75 0 0 0 3 12.5v2c0 .37.27.69.63.74l1.87.29c.14.43.33.83.56 1.21l-1.12 1.55c-.18.25-.15.6.07.82l1.49 1.49c.22.22.57.25.82.07l1.55-1.12c.38.23.78.42 1.21.56l.29 1.87c.06.36.38.63.74.63h2c.37 0 .69-.27.74-.63l.29-1.87c.43-.14.83-.33 1.21-.56l1.55 1.12c.25.18.6.15.82-.07l1.49-1.49c.22-.22.25-.57.07-.82l-1.12-1.55c.23-.38.42-.78.56-1.21l1.87-.29c.36-.06.63-.38.63-.74v-2a.75.75 0 0 0-.63-.74ZM12 15a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z"/>
+          </svg>
+        </button>
+        <button id="${LOGOUT_BUTTON_ID}" class="msp-toolbar__button msp-toolbar__button--icon" type="button"
+          aria-label="Uitloggen">
+          <svg class="msp-toolbar__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5v-2H5V5h5V3Zm9.71 8.29-3-3-1.42 1.42L16.59 11H9v2h7.59l-1.3 1.29 1.42 1.42 3-3a1 1 0 0 0 0-1.42Z"/>
+          </svg>
+        </button>
       </div>
     `;
 
@@ -729,11 +743,6 @@
     });
     dispatchKey("keyup", "Alt", "AltLeft", 18, { ctrlKey: true, altKey: false });
     dispatchKey("keyup", "Control", "ControlLeft", 17, { ctrlKey: false });
-  };
-
-  const isClientRoute = () => {
-    const hash = window.location.hash || "";
-    return /^#\/client(\/|$)/.test(hash);
   };
 
   const isToolbarAllowed = () => {
@@ -932,7 +941,7 @@
 
     tabOrder = tabOrder.filter((id) => remainingIds.includes(id));
 
-    if (!remainingIds.length && isClientRoute()) {
+    if (!remainingIds.length) {
       goHome();
       return;
     }
@@ -1031,7 +1040,7 @@
     if (!toolbar) {
       return;
     }
-    const visible = isClientRoute() && isToolbarAllowed();
+    const visible = isToolbarAllowed();
     toolbar.style.display = visible ? "flex" : "none";
     document.body.classList.toggle(BODY_ACTIVE_CLASS, visible);
     if (!visible) {
@@ -1045,6 +1054,22 @@
   const toggleMenu = () => {
     clearSearchInput();
     triggerMenuShortcut();
+  };
+
+  const goSettingsSessions = () => {
+    clearSearchInput();
+    window.location.hash = "#/settings/sessions";
+  };
+
+  const logout = async () => {
+    clearSearchInput();
+    const apiRoot = getApiRoot();
+    try {
+      await fetch(`${apiRoot}/api/session`, { method: "DELETE", credentials: "same-origin" });
+    } catch (error) {
+      // Ignore logout errors; a reload will show current state.
+    }
+    window.location.reload();
   };
 
   const goHome = () => {
@@ -1069,6 +1094,14 @@
     const button = document.getElementById(MENU_BUTTON_ID);
     if (button) {
       button.addEventListener("click", toggleMenu);
+    }
+    const settingsButton = document.getElementById(SETTINGS_BUTTON_ID);
+    if (settingsButton) {
+      settingsButton.addEventListener("click", goSettingsSessions);
+    }
+    const logoutButton = document.getElementById(LOGOUT_BUTTON_ID);
+    if (logoutButton) {
+      logoutButton.addEventListener("click", logout);
     }
     const searchInput = document.getElementById(SEARCH_INPUT_ID);
     if (searchInput) {
