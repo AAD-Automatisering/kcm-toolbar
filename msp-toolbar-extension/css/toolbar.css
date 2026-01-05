@@ -369,7 +369,7 @@ body.msp-toolbar-tabs-visible .msp-toolbar__tabs {
   min-height: 24px;
   margin-left: 4px;
   border-radius: 6px;
-  border: 1px solid var(--msp-border);
+  border: none;
   background: transparent;
   color: var(--msp-text);
   display: inline-grid;
@@ -384,8 +384,8 @@ body.msp-toolbar-tabs-visible .msp-toolbar__tabs {
 
 .msp-toolbar__tab-close:hover,
 .msp-toolbar__tab-close:focus-visible {
-  border-color: var(--msp-border-hover);
-  background: var(--msp-bg-hover);
+  background: transparent;
+  color: var(--msp-border-hover);
   outline: none;
 }
 
