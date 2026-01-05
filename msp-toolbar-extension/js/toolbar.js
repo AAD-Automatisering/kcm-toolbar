@@ -1044,6 +1044,7 @@
     const height = Math.round(toolbar.getBoundingClientRect().height);
     if (height > 0) {
       document.body.style.setProperty("--msp-toolbar-height", `${height}px`);
+      toolbar.style.height = `${height}px`;
     }
   };
 

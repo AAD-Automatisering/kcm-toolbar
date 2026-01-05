@@ -24,7 +24,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: auto;
+  height: var(--msp-toolbar-base-height);
   min-height: var(--msp-toolbar-base-height);
   opacity: 1;
   pointer-events: auto;
@@ -91,7 +91,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: var(--msp-toolbar-base-height);
+  height: var(--msp-toolbar-base-height);
   width: 100%;
   justify-content: space-between;
 }
@@ -104,12 +104,12 @@
 }
 
 .msp-toolbar__controls-left {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
 .msp-toolbar__controls-right {
-  flex-shrink: 0;
+  flex: 0 0 auto;
 }
 
 .msp-toolbar__search {
