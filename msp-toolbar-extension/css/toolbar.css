@@ -407,7 +407,7 @@
 
 @media (min-width: 901px) {
   #content > div > div > div:nth-child(1) > section.navigation,
-  #content > div > div > div:nth-child(1) > div {
+  #content > div > div > div:nth-child(1) > div.header {
     display: none !important;
   }
 }
