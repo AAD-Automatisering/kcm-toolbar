@@ -398,6 +398,15 @@
   transition: background-color 120ms ease, border-color 120ms ease;
 }
 
+.msp-toolbar__tab-close-icon {
+  width: 12px;
+  height: 12px;
+  min-width: 12px;
+  min-height: 12px;
+  display: block;
+  flex-shrink: 0;
+}
+
 .msp-toolbar__tab-close:hover,
 .msp-toolbar__tab-close:focus-visible {
   background: transparent;
