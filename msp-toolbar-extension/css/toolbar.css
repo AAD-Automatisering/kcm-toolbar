@@ -436,9 +436,14 @@ body.msp-toolbar-active #client {
   height: calc(100% - var(--msp-toolbar-height));
 }
 
-body.msp-toolbar-active #guac-menu {
+body.msp-toolbar-active #guac-menu,
+body.msp-toolbar-active #filesystem-menu {
   top: var(--msp-toolbar-height);
   height: calc(100% - var(--msp-toolbar-height));
+}
+
+body.msp-toolbar-active #filesystem-menu {
+  display: block !important;
 }
 
 body.msp-toolbar-active {
@@ -456,7 +461,7 @@ body.msp-toolbar-active {
 
 @media (min-width: 901px) {
   body:not(.msp-toolbar-active) #other-connections,
-  .msp-toolbar-active #other-connections > div {
+  .msp-toolbar-active #other-connections > div:not(#filesystem-menu) {
     display: none !important;
   }
 }
