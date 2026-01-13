@@ -427,6 +427,11 @@ body.msp-toolbar-active #client {
   height: calc(100% - var(--msp-toolbar-height));
 }
 
+body.msp-toolbar-active #guac-menu {
+  top: var(--msp-toolbar-height);
+  height: calc(100% - var(--msp-toolbar-height));
+}
+
 body.msp-toolbar-active {
   --msp-toolbar-height: var(--msp-toolbar-base-height);
 }
