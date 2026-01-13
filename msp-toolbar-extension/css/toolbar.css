@@ -416,7 +416,9 @@
 
 @media (min-width: 901px) {
   #content > div > div > div:nth-child(1) > section.navigation,
-  #content > div > div > div:nth-child(1) > div.header {
+  #content > div > div > div:nth-child(1) > div.header,
+  #guac-menu > div > div.header > section.navigation,
+  #guac-menu > div > div.header > div.user-menu.ng-isolate-scope {
     display: none !important;
   }
 }
