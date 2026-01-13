@@ -398,8 +398,9 @@
       openButton.dataset.connectionId = match.id;
       openButton.setAttribute("aria-label", `Open ${match.name} in nieuw tabblad`);
       openButton.innerHTML = `
-        <svg class="msp-toolbar__result-open-icon" viewBox="0 -960 960 960" aria-hidden="true" focusable="false" fill="currentColor">
-          <path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h560v-280h80v280q0 33-23.5 56.5T760-120H200Zm188-212-56-56 372-372H560v-80h280v280h-80v-144L388-332Z"/>
+        <svg class="msp-toolbar__result-open-icon" width="24" height="24" fill="none" viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+          <path d="M6.25 4.75a1.5 1.5 0 0 0-1.5 1.5v11.5a1.5 1.5 0 0 0 1.5 1.5h11.5a1.5 1.5 0 0 0 1.5-1.5v-4a1 1 0 1 1 2 0v4a3.5 3.5 0 0 1-3.5 3.5H6.25a3.5 3.5 0 0 1-3.5-3.5V6.25a3.5 3.5 0 0 1 3.5-3.5h4a1 1 0 1 1 0 2h-4Zm6.5-1a1 1 0 0 1 1-1h6.5a1 1 0 0 1 1 1v6.5a1 1 0 1 1-2 0V6.164l-4.793 4.793a1 1 0 1 1-1.414-1.414l4.793-4.793H13.75a1 1 0 0 1-1-1Z" fill="#ffffff"/>
         </svg>
       `;
 
@@ -677,14 +678,16 @@
         <div class="msp-toolbar__controls-left">
           <button id="${HOME_BUTTON_ID}" class="msp-toolbar__button msp-toolbar__button--icon" type="button"
           aria-label="Naar dashboard">
-          <svg class="msp-toolbar__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M12 3.2 3.5 10v10.2h6.2v-6.1h4.6v6.1h6.2V10L12 3.2zM18.6 18.2h-2.2v-6.1H7.6v6.1H5.4v-7.2L12 5.9l6.6 5.1v7.2z"/>
+          <svg class="msp-toolbar__icon" width="24" height="24" fill="none" viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+            <path d="M10.55 2.533a2.25 2.25 0 0 1 2.9 0l6.75 5.695c.508.427.8 1.056.8 1.72v9.802a1.75 1.75 0 0 1-1.75 1.75h-3a1.75 1.75 0 0 1-1.75-1.75v-5a.75.75 0 0 0-.75-.75h-3.5a.75.75 0 0 0-.75.75v5a1.75 1.75 0 0 1-1.75 1.75h-3A1.75 1.75 0 0 1 3 19.75V9.947c0-.663.292-1.292.8-1.72l6.75-5.694Z" fill="#ffffff"/>
           </svg>
         </button>
         <button id="${MENU_BUTTON_ID}" class="msp-toolbar__button msp-toolbar__button--icon" type="button"
           aria-label="Open menu">
-          <svg class="msp-toolbar__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M4 7.2h16v1.8H4V7.2zm0 5.9h16v1.8H4v-1.8zm0 5.9h16v1.8H4v-1.8z"/>
+          <svg class="msp-toolbar__icon" width="24" height="24" fill="none" viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+            <path d="M4.75 4A2.75 2.75 0 0 0 2 6.75v10.5A2.75 2.75 0 0 0 4.75 20h14.5A2.75 2.75 0 0 0 22 17.25V6.75A2.75 2.75 0 0 0 19.25 4H4.75ZM9 18.5v-13h10.25c.69 0 1.25.56 1.25 1.25v10.5c0 .69-.56 1.25-1.25 1.25H9Z" fill="#ffffff"/>
           </svg>
         </button>
         <div class="msp-toolbar__search">
@@ -698,14 +701,16 @@
         <div class="msp-toolbar__controls-right">
         <button id="${SETTINGS_BUTTON_ID}" class="msp-toolbar__button msp-toolbar__button--icon" type="button"
           aria-label="Open sessie-instellingen">
-          <svg class="msp-toolbar__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M12 8.5c-1.93 0-3.5 1.57-3.5 3.5s1.57 3.5 3.5 3.5 3.5-1.57 3.5-3.5S13.93 8.5 12 8.5Zm8.94 2.2-1.87-.29c-.14-.43-.33-.83-.56-1.21l1.12-1.55c.18-.25.15-.6-.07-.82l-1.49-1.49c-.22-.22-.57-.25-.82-.07l-1.55 1.12c-.38-.23-.78-.42-1.21-.56l-.29-1.87A.75.75 0 0 0 12.5 4h-2a.75.75 0 0 0-.74.63l-.29 1.87c-.43.14-.83.33-1.21.56L6.71 5.94a.75.75 0 0 0-.82.07L4.4 7.5c-.22.22-.25.57-.07.82l1.12 1.55c-.23.38-.42.78-.56 1.21l-1.87.29A.75.75 0 0 0 3 12.5v2c0 .37.27.69.63.74l1.87.29c.14.43.33.83.56 1.21l-1.12 1.55c-.18.25-.15.6.07.82l1.49 1.49c.22.22.57.25.82.07l1.55-1.12c.38.23.78.42 1.21.56l.29 1.87c.06.36.38.63.74.63h2c.37 0 .69-.27.74-.63l.29-1.87c.43-.14.83-.33 1.21-.56l1.55 1.12c.25.18.6.15.82-.07l1.49-1.49c.22-.22.25-.57.07-.82l-1.12-1.55c.23-.38.42-.78.56-1.21l1.87-.29c.36-.06.63-.38.63-.74v-2a.75.75 0 0 0-.63-.74ZM12 15a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z"/>
+          <svg class="msp-toolbar__icon" width="24" height="24" fill="none" viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+            <path d="M16.75 2.001a5.25 5.25 0 0 0-5.005 6.84l-9.068 9.38a2.344 2.344 0 1 0 3.37 3.257l8.963-9.272A5.25 5.25 0 0 0 21.797 5.8a.75.75 0 0 0-1.25-.323L17.36 8.66l-2.06-2.06 3.16-3.162a.75.75 0 0 0-.333-1.254 5.255 5.255 0 0 0-1.378-.183Z" fill="#ffffff"/>
           </svg>
         </button>
         <button id="${LOGOUT_BUTTON_ID}" class="msp-toolbar__button msp-toolbar__button--icon" type="button"
           aria-label="Uitloggen">
-          <svg class="msp-toolbar__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5v-2H5V5h5V3Zm9.71 8.29-3-3-1.42 1.42L16.59 11H9v2h7.59l-1.3 1.29 1.42 1.42 3-3a1 1 0 0 0 0-1.42Z"/>
+          <svg class="msp-toolbar__icon" width="24" height="24" fill="none" viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+            <path d="M6.25 3A3.25 3.25 0 0 0 3 6.25v11.5A3.25 3.25 0 0 0 6.25 21h11.5A3.25 3.25 0 0 0 21 17.75V6.25A3.25 3.25 0 0 0 17.75 3H6.25Zm1.97 5.22a.75.75 0 0 1 1.06 0L12 10.94l2.72-2.72a.75.75 0 1 1 1.06 1.06L13.06 12l2.72 2.72a.75.75 0 1 1-1.06 1.06L12 13.06l-2.72 2.72a.75.75 0 0 1-1.06-1.06L10.94 12 8.22 9.28a.75.75 0 0 1 0-1.06Z" fill="#ffffff"/>
           </svg>
         </button>
         </div>
@@ -933,7 +938,12 @@
       close.type = "button";
       close.className = "msp-toolbar__tab-close";
       close.setAttribute("aria-label", `Verbreek ${tab.title}`);
-      close.textContent = "x";
+      close.innerHTML = `
+        <svg class="msp-toolbar__tab-close-icon" width="24" height="24" fill="none" viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+          <path d="m4.21 4.387.083-.094a1 1 0 0 1 1.32-.083l.094.083L12 10.585l6.293-6.292a1 1 0 1 1 1.414 1.414L13.415 12l6.292 6.293a1 1 0 0 1 .083 1.32l-.083.094a1 1 0 0 1-1.32.083l-.094-.083L12 13.415l-6.293 6.292a1 1 0 0 1-1.414-1.414L10.585 12 4.293 5.707a1 1 0 0 1-.083-1.32l.083-.094-.083.094Z" fill="#ffffff"/>
+        </svg>
+      `;
       tabEl.appendChild(close);
 
       fragment.appendChild(tabEl);
