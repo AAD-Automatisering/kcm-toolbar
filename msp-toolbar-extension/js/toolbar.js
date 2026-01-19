@@ -956,8 +956,6 @@
           <path d="M12 4.75a7.25 7.25 0 1 0 7.201 6.406c-.068-.588.358-1.156.95-1.156.515 0 .968.358 1.03.87a9.25 9.25 0 1 1-3.432-6.116V4.25a1 1 0 1 1 2.001 0v2.698l.034.052h-.034v.25a1 1 0 0 1-1 1h-3a1 1 0 1 1 0-2h.666A7.219 7.219 0 0 0 12 4.75Z" fill="#ffffff"/>
         </svg>
       `;
-      tabEl.appendChild(reconnect);
-
       const close = document.createElement("button");
       close.type = "button";
       close.className = "msp-toolbar__tab-close";
@@ -968,7 +966,12 @@
           <path d="m4.21 4.387.083-.094a1 1 0 0 1 1.32-.083l.094.083L12 10.585l6.293-6.292a1 1 0 1 1 1.414 1.414L13.415 12l6.292 6.293a1 1 0 0 1 .083 1.32l-.083.094a1 1 0 0 1-1.32.083l-.094-.083L12 13.415l-6.293 6.292a1 1 0 0 1-1.414-1.414L10.585 12 4.293 5.707a1 1 0 0 1-.083-1.32l.083-.094-.083.094Z" fill="currentColor"/>
         </svg>
       `;
-      tabEl.appendChild(close);
+
+      const actions = document.createElement("span");
+      actions.className = "msp-toolbar__tab-actions";
+      actions.appendChild(reconnect);
+      actions.appendChild(close);
+      tabEl.appendChild(actions);
 
       fragment.appendChild(tabEl);
     });
