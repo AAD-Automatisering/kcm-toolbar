@@ -378,12 +378,12 @@
   flex-shrink: 0;
 }
 
-.msp-toolbar__tab-close {
+.msp-toolbar__tab-close,
+.msp-toolbar__tab-reconnect {
   width: 24px;
   height: 24px;
   min-width: 24px;
   min-height: 24px;
-  margin-left: 4px;
   border-radius: 6px;
   border: none;
   background: transparent;
@@ -398,7 +398,12 @@
   transition: background-color 120ms ease, border-color 120ms ease;
 }
 
-.msp-toolbar__tab-close-icon {
+.msp-toolbar__tab-reconnect {
+  margin-left: 4px;
+}
+
+.msp-toolbar__tab-close-icon,
+.msp-toolbar__tab-reconnect-icon {
   width: 12px;
   height: 12px;
   min-width: 12px;
@@ -408,7 +413,9 @@
 }
 
 .msp-toolbar__tab-close:hover,
-.msp-toolbar__tab-close:focus-visible {
+.msp-toolbar__tab-close:focus-visible,
+.msp-toolbar__tab-reconnect:hover,
+.msp-toolbar__tab-reconnect:focus-visible {
   background: transparent;
   color: var(--msp-border-hover);
   outline: none;

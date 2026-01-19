@@ -476,6 +476,24 @@
     return `#/client/${groupId}${querySuffix}`;
   };
 
+  const forceNavigateToClientGroup = (groupId) => {
+    const targetHash = buildClientGroupHash(groupId);
+    if (!targetHash) {
+      return;
+    }
+    if (window.location.hash === targetHash) {
+      const hash = window.location.hash || "";
+      const [, hashQuery = ""] = hash.split("?");
+      const querySuffix = hashQuery ? `?${hashQuery}` : "";
+      window.location.hash = `#/${querySuffix}`;
+      setTimeout(() => {
+        window.location.hash = targetHash;
+      }, 0);
+      return;
+    }
+    window.location.hash = targetHash;
+  };
+
   const navigateToConnection = (connectionId, options = {}) => {
     if (!connectionId) {
       return;
@@ -821,6 +839,128 @@
     });
   };
 
+  const getManagedClientGroupId = (services, group) => {
+    if (!group) {
+      return null;
+    }
+    if (
+      services &&
+      services.ManagedClientGroup &&
+      typeof services.ManagedClientGroup.getIdentifier === "function"
+    ) {
+      return services.ManagedClientGroup.getIdentifier(group);
+    }
+    return group.id || null;
+  };
+
+  const findManagedClientGroup = (services, groupId) => {
+    if (
+      !services ||
+      !services.guacClientManager ||
+      typeof services.guacClientManager.getManagedClientGroups !== "function"
+    ) {
+      return null;
+    }
+    const groups = services.guacClientManager.getManagedClientGroups() || [];
+    if (!Array.isArray(groups)) {
+      return null;
+    }
+    return (
+      groups.find((group) => getManagedClientGroupId(services, group) === groupId) || null
+    );
+  };
+
+  const reconnectManagedClient = (client) => {
+    if (!client) {
+      return false;
+    }
+    if (typeof client.reconnect === "function") {
+      try {
+        client.reconnect();
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+    if (typeof client.connect === "function") {
+      try {
+        client.connect();
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+    const guacClient = client.client || client.guacClient || client.connection || null;
+    if (!guacClient) {
+      return false;
+    }
+    try {
+      if (typeof guacClient.disconnect === "function") {
+        guacClient.disconnect();
+      }
+    } catch (error) {
+      // Ignore disconnect failures.
+    }
+    try {
+      if (typeof guacClient.connect === "function") {
+        guacClient.connect();
+        return true;
+      }
+    } catch (error) {
+      return false;
+    }
+    return false;
+  };
+
+  const reconnectClientGroup = (groupId) => {
+    if (!groupId) {
+      return;
+    }
+    const services = getGuacServices();
+    if (
+      services &&
+      services.guacClientManager &&
+      typeof services.guacClientManager.reconnectManagedClientGroup === "function"
+    ) {
+      try {
+        services.guacClientManager.reconnectManagedClientGroup(groupId);
+        return;
+      } catch (error) {
+        // Ignore reconnect errors and fall back to other strategies.
+      }
+    }
+    const group = findManagedClientGroup(services, groupId);
+    if (group) {
+      if (typeof group.reconnect === "function") {
+        try {
+          group.reconnect();
+          return;
+        } catch (error) {
+          // Ignore reconnect errors and fall back to other strategies.
+        }
+      }
+      if (typeof group.connect === "function") {
+        try {
+          group.connect();
+          return;
+        } catch (error) {
+          // Ignore connect errors and fall back to other strategies.
+        }
+      }
+      const clients = Array.isArray(group.clients) ? group.clients : [];
+      let attempted = false;
+      clients.forEach((client) => {
+        if (reconnectManagedClient(client)) {
+          attempted = true;
+        }
+      });
+      if (attempted) {
+        return;
+      }
+    }
+    forceNavigateToClientGroup(groupId);
+  };
+
   const buildTabModels = () => {
     const services = getGuacServices();
     if (
@@ -840,10 +980,7 @@
         if (!group) {
           return null;
         }
-        const id =
-          services.ManagedClientGroup && typeof services.ManagedClientGroup.getIdentifier === "function"
-            ? services.ManagedClientGroup.getIdentifier(group)
-            : group.id || "";
+        const id = getManagedClientGroupId(services, group) || "";
         if (!id) {
           return null;
         }
@@ -935,6 +1072,18 @@
         tabEl.appendChild(count);
       }
 
+      const reconnect = document.createElement("button");
+      reconnect.type = "button";
+      reconnect.className = "msp-toolbar__tab-reconnect";
+      reconnect.setAttribute("aria-label", `Opnieuw verbinden met ${tab.title}`);
+      reconnect.innerHTML = `
+        <svg class="msp-toolbar__tab-reconnect-icon" width="24" height="24" fill="none" viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+          <path d="M12 4.75a7.25 7.25 0 1 0 7.201 6.406c-.068-.588.358-1.156.95-1.156.515 0 .968.358 1.03.87a9.25 9.25 0 1 1-3.432-6.116V4.25a1 1 0 1 1 2.001 0v2.698l.034.052h-.034v.25a1 1 0 0 1-1 1h-3a1 1 0 1 1 0-2h.666A7.219 7.219 0 0 0 12 4.75Z" fill="#ffffff"/>
+        </svg>
+      `;
+      tabEl.appendChild(reconnect);
+
       const close = document.createElement("button");
       close.type = "button";
       close.className = "msp-toolbar__tab-close";
@@ -980,13 +1129,7 @@
         if (!group) {
           return null;
         }
-        if (
-          services.ManagedClientGroup &&
-          typeof services.ManagedClientGroup.getIdentifier === "function"
-        ) {
-          return services.ManagedClientGroup.getIdentifier(group);
-        }
-        return group.id || null;
+        return getManagedClientGroupId(services, group);
       })
       .filter(Boolean);
 
@@ -1022,6 +1165,13 @@
     }
     const groupId = tab.dataset.groupId;
     if (!groupId) {
+      return;
+    }
+    const reconnectClicked = event.target.closest(".msp-toolbar__tab-reconnect");
+    if (reconnectClicked) {
+      event.preventDefault();
+      event.stopPropagation();
+      reconnectClientGroup(groupId);
       return;
     }
     const closeClicked = event.target.closest(".msp-toolbar__tab-close");
