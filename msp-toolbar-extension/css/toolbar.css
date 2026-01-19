@@ -402,6 +402,10 @@
   margin-left: 4px;
 }
 
+.msp-toolbar__tab-close {
+  margin-left: -2px;
+}
+
 .msp-toolbar__tab-close-icon,
 .msp-toolbar__tab-reconnect-icon {
   width: 12px;
@@ -410,6 +414,10 @@
   min-height: 12px;
   display: block;
   flex-shrink: 0;
+}
+
+.msp-toolbar__tab-reconnect-icon path {
+  fill: currentColor;
 }
 
 .msp-toolbar__tab-close:hover,

@@ -476,24 +476,6 @@
     return `#/client/${groupId}${querySuffix}`;
   };
 
-  const forceNavigateToClientGroup = (groupId) => {
-    const targetHash = buildClientGroupHash(groupId);
-    if (!targetHash) {
-      return;
-    }
-    if (window.location.hash === targetHash) {
-      const hash = window.location.hash || "";
-      const [, hashQuery = ""] = hash.split("?");
-      const querySuffix = hashQuery ? `?${hashQuery}` : "";
-      window.location.hash = `#/${querySuffix}`;
-      setTimeout(() => {
-        window.location.hash = targetHash;
-      }, 0);
-      return;
-    }
-    window.location.hash = targetHash;
-  };
-
   const navigateToConnection = (connectionId, options = {}) => {
     if (!connectionId) {
       return;
@@ -853,114 +835,6 @@
     return group.id || null;
   };
 
-  const findManagedClientGroup = (services, groupId) => {
-    if (
-      !services ||
-      !services.guacClientManager ||
-      typeof services.guacClientManager.getManagedClientGroups !== "function"
-    ) {
-      return null;
-    }
-    const groups = services.guacClientManager.getManagedClientGroups() || [];
-    if (!Array.isArray(groups)) {
-      return null;
-    }
-    return (
-      groups.find((group) => getManagedClientGroupId(services, group) === groupId) || null
-    );
-  };
-
-  const reconnectManagedClient = (client) => {
-    if (!client) {
-      return false;
-    }
-    if (typeof client.reconnect === "function") {
-      try {
-        client.reconnect();
-        return true;
-      } catch (error) {
-        return false;
-      }
-    }
-    if (typeof client.connect === "function") {
-      try {
-        client.connect();
-        return true;
-      } catch (error) {
-        return false;
-      }
-    }
-    const guacClient = client.client || client.guacClient || client.connection || null;
-    if (!guacClient) {
-      return false;
-    }
-    try {
-      if (typeof guacClient.disconnect === "function") {
-        guacClient.disconnect();
-      }
-    } catch (error) {
-      // Ignore disconnect failures.
-    }
-    try {
-      if (typeof guacClient.connect === "function") {
-        guacClient.connect();
-        return true;
-      }
-    } catch (error) {
-      return false;
-    }
-    return false;
-  };
-
-  const reconnectClientGroup = (groupId) => {
-    if (!groupId) {
-      return;
-    }
-    const services = getGuacServices();
-    if (
-      services &&
-      services.guacClientManager &&
-      typeof services.guacClientManager.reconnectManagedClientGroup === "function"
-    ) {
-      try {
-        services.guacClientManager.reconnectManagedClientGroup(groupId);
-        return;
-      } catch (error) {
-        // Ignore reconnect errors and fall back to other strategies.
-      }
-    }
-    const group = findManagedClientGroup(services, groupId);
-    if (group) {
-      if (typeof group.reconnect === "function") {
-        try {
-          group.reconnect();
-          return;
-        } catch (error) {
-          // Ignore reconnect errors and fall back to other strategies.
-        }
-      }
-      if (typeof group.connect === "function") {
-        try {
-          group.connect();
-          return;
-        } catch (error) {
-          // Ignore connect errors and fall back to other strategies.
-        }
-      }
-      const clients = Array.isArray(group.clients) ? group.clients : [];
-      let attempted = false;
-      clients.forEach((client) => {
-        if (reconnectManagedClient(client)) {
-          attempted = true;
-        }
-      });
-      if (attempted) {
-        return;
-      }
-    }
-    forceNavigateToClientGroup(groupId);
-  };
-
   const buildTabModels = () => {
     const services = getGuacServices();
     if (
@@ -1075,7 +949,7 @@
       const reconnect = document.createElement("button");
       reconnect.type = "button";
       reconnect.className = "msp-toolbar__tab-reconnect";
-      reconnect.setAttribute("aria-label", `Opnieuw verbinden met ${tab.title}`);
+      reconnect.setAttribute("aria-label", `Verversen ${tab.title}`);
       reconnect.innerHTML = `
         <svg class="msp-toolbar__tab-reconnect-icon" width="24" height="24" fill="none" viewBox="0 0 24 24"
           xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
@@ -1171,7 +1045,7 @@
     if (reconnectClicked) {
       event.preventDefault();
       event.stopPropagation();
-      reconnectClientGroup(groupId);
+      window.location.reload();
       return;
     }
     const closeClicked = event.target.closest(".msp-toolbar__tab-close");
