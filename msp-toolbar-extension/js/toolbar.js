@@ -1047,7 +1047,6 @@
       `;
 
       item.appendChild(mainButton);
-      item.appendChild(watchButton);
       item.appendChild(openButton);
       results.appendChild(item);
 
@@ -1059,18 +1058,25 @@
           updateActiveUsersElement(users, info);
           const hasUsers = Array.isArray(info.users) && info.users.length > 0;
           const hasSession = hasUsers && info.watch && info.watch.identifier;
-          watchButton.hidden = !(hasUsers && hasSession);
-          if (hasSession) {
+          if (hasSession && hasUsers) {
+            if (!watchButton.isConnected) {
+              item.insertBefore(watchButton, openButton);
+            }
+            watchButton.hidden = false;
             watchButton.dataset.activeConnectionId = info.watch.identifier;
             watchButton.dataset.activeConnectionDataSource =
               info.dataSource || getDataSource();
             const label =
               info.watch.displayName || info.watch.username || `actieve sessie`;
             watchButton.setAttribute("title", `Meekijken met ${label}`);
-          } else {
+          } else if (watchButton.isConnected) {
+            watchButton.hidden = true;
             watchButton.dataset.activeConnectionId = "";
             watchButton.dataset.activeConnectionDataSource = "";
             watchButton.removeAttribute("title");
+            watchButton.remove();
+          } else {
+            watchButton.hidden = true;
           }
         })
         .catch(() => {
@@ -1079,6 +1085,9 @@
           watchButton.dataset.activeConnectionId = "";
           watchButton.dataset.activeConnectionDataSource = "";
           watchButton.removeAttribute("title");
+          if (watchButton.isConnected) {
+            watchButton.remove();
+          }
         });
     });
     results.hidden = matches.length === 0;

@@ -286,13 +286,13 @@
 }
 
 .msp-toolbar__result-watch {
-  margin-left: 8px;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
+  margin-left: 4px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 169, 77, 0.5);
+  border: 1px solid rgba(255, 169, 77, 0.6);
   background: rgba(255, 169, 77, 0.15);
   color: #ffa94d;
   cursor: pointer;
