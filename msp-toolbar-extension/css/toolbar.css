@@ -249,6 +249,17 @@
   opacity: 0.72;
 }
 
+.msp-toolbar__result-users {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.msp-toolbar__result-users.is-active {
+  opacity: 1;
+}
+
 .msp-toolbar__result-open {
   width: 28px;
   min-width: 28px;

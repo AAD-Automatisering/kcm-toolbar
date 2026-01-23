@@ -13,6 +13,8 @@
   const SEARCH_SUGGEST_MIN = 2;
   const MAX_RESULTS = 8;
   const TAB_SYNC_INTERVAL = 1000;
+  const ACTIVE_USER_CACHE_TTL = 15000;
+  const ACTIVE_USER_ERROR_TTL = 20000;
 
   let connectionIndex = null;
   let connectionIndexPromise = null;
@@ -20,6 +22,7 @@
   let tabSyncIntervalId = null;
   let tabSnapshot = "";
   let tabOrder = [];
+  const activeUserCache = new Map();
 
   const getAngularInjector = () => {
     const angular = window.angular;
@@ -173,6 +176,22 @@
     return url.toString();
   };
 
+  const buildActiveConnectionsUrl = (connectionId, options = {}) => {
+    const includeToken = options.includeToken !== false;
+    const dataSource = getDataSource();
+    const apiRoot = getApiRoot();
+    const basePath = `${apiRoot}/api/session/data/${encodeURIComponent(
+      dataSource
+    )}/connections/${encodeURIComponent(connectionId)}/activeConnections`;
+    const token = getAuthToken();
+    if (!token || !includeToken) {
+      return basePath;
+    }
+    const url = new URL(basePath, window.location.origin);
+    url.searchParams.set("token", token);
+    return url.toString();
+  };
+
   const normalizeToArray = (value) => {
     if (!value) {
       return [];
@@ -269,6 +288,158 @@
         throw error;
       });
     return connectionIndexPromise;
+  };
+
+  const isActiveUserCacheFresh = (entry) => {
+    if (!entry || typeof entry.fetchedAt !== "number") {
+      return false;
+    }
+    const ttl = entry.error ? ACTIVE_USER_ERROR_TTL : ACTIVE_USER_CACHE_TTL;
+    return Date.now() - entry.fetchedAt < ttl;
+  };
+
+  const extractActiveUsernames = (payload) => {
+    const collectEntries = (value) => {
+      if (!value) {
+        return [];
+      }
+      if (Array.isArray(value)) {
+        return value;
+      }
+      if (typeof value === "object") {
+        if (value.activeConnections) {
+          return collectEntries(value.activeConnections);
+        }
+        if (value.data) {
+          return collectEntries(value.data);
+        }
+        return Object.values(value);
+      }
+      return [];
+    };
+    const entries = collectEntries(payload);
+    const usernames = entries
+      .map((entry) => {
+        if (!entry) {
+          return null;
+        }
+        if (typeof entry === "string") {
+          return entry;
+        }
+        if (entry.username) {
+          return entry.username;
+        }
+        if (entry.user && entry.user.username) {
+          return entry.user.username;
+        }
+        if (entry.userName) {
+          return entry.userName;
+        }
+        if (entry.userIdentifier) {
+          return entry.userIdentifier;
+        }
+        return null;
+      })
+      .filter(Boolean)
+      .map((name) => String(name).trim())
+      .filter(Boolean);
+    const unique = [];
+    const seen = new Set();
+    usernames.forEach((name) => {
+      if (seen.has(name)) {
+        return;
+      }
+      seen.add(name);
+      unique.push(name);
+    });
+    return unique;
+  };
+
+  const fetchActiveConnections = async (connectionId, includeToken) => {
+    const url = buildActiveConnectionsUrl(connectionId, { includeToken });
+    const response = await fetch(url, { credentials: "same-origin" });
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    return response.json();
+  };
+
+  const requestActiveConnections = async (connectionId) => {
+    const token = getAuthToken();
+    try {
+      return await fetchActiveConnections(connectionId, false);
+    } catch (error) {
+      if (token && (error.status === 401 || error.status === 403)) {
+        return fetchActiveConnections(connectionId, true);
+      }
+      throw error;
+    }
+  };
+
+  const fetchActiveUsersForConnection = (connectionId) => {
+    if (!connectionId) {
+      return Promise.resolve([]);
+    }
+    const cached = activeUserCache.get(connectionId);
+    if (cached) {
+      if (cached.promise) {
+        return cached.promise;
+      }
+      if (isActiveUserCacheFresh(cached)) {
+        return Promise.resolve(cached.users || []);
+      }
+    }
+    const promise = requestActiveConnections(connectionId)
+      .then((payload) => {
+        const users = extractActiveUsernames(payload);
+        activeUserCache.set(connectionId, {
+          users,
+          fetchedAt: Date.now(),
+          error: false
+        });
+        return users;
+      })
+      .catch(() => {
+        activeUserCache.set(connectionId, {
+          users: [],
+          fetchedAt: Date.now(),
+          error: true
+        });
+        return [];
+      });
+    activeUserCache.set(connectionId, { promise, fetchedAt: Date.now(), error: false });
+    return promise;
+  };
+
+  const formatActiveUserList = (users) => {
+    if (!Array.isArray(users) || users.length === 0) {
+      return "";
+    }
+    const maxVisible = 2;
+    if (users.length <= maxVisible) {
+      return users.join(", ");
+    }
+    const remaining = users.length - maxVisible;
+    return `${users.slice(0, maxVisible).join(", ")} +${remaining}`;
+  };
+
+  const updateActiveUsersElement = (element, users) => {
+    if (!element || !element.isConnected) {
+      return;
+    }
+    if (!Array.isArray(users) || users.length === 0) {
+      element.textContent = "";
+      element.hidden = true;
+      element.classList.remove("is-active");
+      element.removeAttribute("title");
+      return;
+    }
+    element.textContent = `In gebruik door: ${formatActiveUserList(users)}`;
+    element.title = users.join(", ");
+    element.hidden = false;
+    element.classList.add("is-active");
   };
 
   const scoreConnection = (connection, queryLower) => {
@@ -392,6 +563,12 @@
         mainButton.appendChild(path);
       }
 
+      const users = document.createElement("span");
+      users.className = "msp-toolbar__result-users";
+      users.dataset.connectionId = match.id;
+      users.hidden = true;
+      mainButton.appendChild(users);
+
       const openButton = document.createElement("button");
       openButton.type = "button";
       openButton.className = "msp-toolbar__result-open";
@@ -407,6 +584,17 @@
       item.appendChild(mainButton);
       item.appendChild(openButton);
       results.appendChild(item);
+
+      fetchActiveUsersForConnection(match.id)
+        .then((activeUsers) => {
+          if (!users.isConnected || users.dataset.connectionId !== match.id) {
+            return;
+          }
+          updateActiveUsersElement(users, activeUsers);
+        })
+        .catch(() => {
+          updateActiveUsersElement(users, []);
+        });
     });
     results.hidden = matches.length === 0;
   };
