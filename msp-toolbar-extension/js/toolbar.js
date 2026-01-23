@@ -1735,12 +1735,25 @@
       return;
     }
     const reconnectClicked = event.target.closest(".msp-toolbar__tab-reconnect");
-      if (reconnectClicked) {
-        event.preventDefault();
-        event.stopPropagation();
-        refreshTabBar();
-        return;
+    if (reconnectClicked) {
+      event.preventDefault();
+      event.stopPropagation();
+      const services = getGuacServices();
+      if (
+        services &&
+        services.guacClientManager &&
+        typeof services.guacClientManager.removeManagedClientGroup === "function"
+      ) {
+        try {
+          services.guacClientManager.removeManagedClientGroup(groupId);
+        } catch (error) {
+          // Ignore removal errors; we still want to reopen the group.
+        }
       }
+      navigateToClientGroup(groupId, { openInNewTab: false });
+      resetCaches();
+      return;
+    }
     const closeClicked = event.target.closest(".msp-toolbar__tab-close");
     if (closeClicked) {
       event.preventDefault();
