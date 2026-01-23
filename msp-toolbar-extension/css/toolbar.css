@@ -285,6 +285,36 @@
   outline: none;
 }
 
+.msp-toolbar__result-watch {
+  margin-left: 8px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: rgba(255, 169, 77, 0.1);
+  color: #ffa94d;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.msp-toolbar__result-watch:hover,
+.msp-toolbar__result-watch:focus-visible {
+  border-color: var(--msp-border-hover);
+  color: var(--msp-border-hover);
+  background: rgba(120, 180, 255, 0.12);
+}
+
+.msp-toolbar__result-watch:focus-visible {
+  outline: 2px solid var(--msp-border-hover);
+  outline-offset: 2px;
+}
+
 .msp-toolbar__result-open:hover,
 .msp-toolbar__result-open:focus-visible {
   background: transparent;

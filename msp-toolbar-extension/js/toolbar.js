@@ -318,75 +318,6 @@
 
   const isActiveConnectionsIndexFresh = (entry) => isActiveUserCacheFresh(entry);
 
-  const extractActiveUsernames = (payload) => {
-    const isUserLikeObject = (value) =>
-      !!(
-        value &&
-        typeof value === "object" &&
-        (value.username ||
-          value.userName ||
-          value.userIdentifier ||
-          (value.user && value.user.username))
-      );
-    const collectEntries = (value) => {
-      if (!value) {
-        return [];
-      }
-      if (Array.isArray(value)) {
-        return value;
-      }
-      if (typeof value === "object") {
-        if (isUserLikeObject(value)) {
-          return [value];
-        }
-        if (value.activeConnections) {
-          return collectEntries(value.activeConnections);
-        }
-        if (value.data) {
-          return collectEntries(value.data);
-        }
-        return Object.values(value);
-      }
-      return [];
-    };
-    const entries = collectEntries(payload);
-    const usernames = entries
-      .map((entry) => {
-        if (!entry) {
-          return null;
-        }
-        if (typeof entry === "string") {
-          return entry;
-        }
-        if (entry.username) {
-          return entry.username;
-        }
-        if (entry.user && entry.user.username) {
-          return entry.user.username;
-        }
-        if (entry.userName) {
-          return entry.userName;
-        }
-        if (entry.userIdentifier) {
-          return entry.userIdentifier;
-        }
-        return null;
-      })
-      .filter(Boolean)
-      .map((name) => String(name).trim())
-      .filter(Boolean);
-    const unique = [];
-    const seen = new Set();
-    usernames.forEach((name) => {
-      if (seen.has(name)) {
-        return;
-      }
-      seen.add(name);
-      unique.push(name);
-    });
-    return unique;
-  };
-
   const getConnectionIdFromActiveEntry = (entry) => {
     if (!entry || typeof entry !== "object") {
       return null;
@@ -397,79 +328,116 @@
       entry.connectionIdentifierId ||
       (entry.connection &&
         (entry.connection.identifier || entry.connection.id || entry.connection.connectionIdentifier)) ||
-      entry.identifier ||
-      entry.id ||
       null
     );
   };
 
-  const extractActiveUsersByConnection = (payload) => {
-    const map = new Map();
-    const addUsers = (connectionId, users) => {
-      if (!connectionId || !users || !users.length) {
-        return;
-      }
-      const key = String(connectionId);
-      const existing = map.get(key) || [];
-      const seen = new Set(existing);
-      users.forEach((user) => {
-        if (!seen.has(user)) {
-          seen.add(user);
-          existing.push(user);
-        }
-      });
-      map.set(key, existing);
+  const createActiveConnectionEntry = (entry, fallbackIdentifier) => {
+    if (!entry || typeof entry !== "object") {
+      return null;
+    }
+    const identifier = entry.identifier || fallbackIdentifier;
+    const connectionIdentifier = getConnectionIdFromActiveEntry(entry);
+    if (!identifier || !connectionIdentifier) {
+      return null;
+    }
+    const username =
+      entry.username ||
+      entry.userName ||
+      entry.userIdentifier ||
+      (entry.user && entry.user.username);
+    return {
+      identifier: String(identifier),
+      connectionIdentifier: String(connectionIdentifier),
+      username: username ? String(username).trim() : "",
+      connectable: entry.connectable !== false,
+      raw: entry
     };
-    const handleEntry = (entry, fallbackId = null) => {
-      if (!entry) {
-        return;
-      }
-      if (Array.isArray(entry)) {
-        const users = extractActiveUsernames(entry);
-        if (fallbackId) {
-          addUsers(fallbackId, users);
-          return;
-        }
-        entry.forEach((item) => handleEntry(item, null));
-        return;
-      }
-      if (typeof entry !== "object") {
-        return;
-      }
-      const connectionId = getConnectionIdFromActiveEntry(entry) || fallbackId;
-      const users = extractActiveUsernames(
-        entry.activeConnections || entry.users || entry.activeUsers || entry.connections || entry
-      );
-      if (connectionId) {
-        addUsers(connectionId, users);
-      }
-      if (entry.activeConnections && Array.isArray(entry.activeConnections)) {
-        entry.activeConnections.forEach((item) => handleEntry(item, null));
-      }
-    };
+  };
 
-    if (!payload) {
+  const collectActiveConnectionEntries = (value, map = new Map(), fallbackIdentifier = null) => {
+    if (!value) {
       return map;
     }
-    if (payload.data) {
-      return extractActiveUsersByConnection(payload.data);
-    }
-    if (payload.activeConnections) {
-      handleEntry(payload.activeConnections, null);
-    }
-    if (Array.isArray(payload)) {
-      payload.forEach((entry) => handleEntry(entry, null));
+    if (Array.isArray(value)) {
+      value.forEach((item) => collectActiveConnectionEntries(item, map, fallbackIdentifier));
       return map;
     }
-    if (typeof payload === "object") {
-      Object.entries(payload).forEach(([key, value]) => {
-        if (value && (Array.isArray(value) || typeof value === "object")) {
-          handleEntry(value, key);
-        }
-      });
-      handleEntry(payload, null);
+    if (typeof value !== "object") {
+      return map;
     }
+    if (value.data) {
+      collectActiveConnectionEntries(value.data, map, fallbackIdentifier);
+    }
+    if (value.activeConnections) {
+      collectActiveConnectionEntries(value.activeConnections, map, fallbackIdentifier);
+    }
+    const entry = createActiveConnectionEntry(value, fallbackIdentifier);
+    if (entry) {
+      const key = entry.connectionIdentifier;
+      const existing = map.get(key) || [];
+      existing.push(entry);
+      map.set(key, existing);
+      return map;
+    }
+    Object.entries(value).forEach(([key, nested]) => {
+      collectActiveConnectionEntries(nested, map, key);
+    });
     return map;
+  };
+
+  const extractActiveConnectionsByConnection = (payload) => collectActiveConnectionEntries(payload);
+
+  const resolveActiveConnectionEntries = (entries, dataSource) => {
+    if (!entries.length) {
+      return Promise.resolve(entries);
+    }
+    const seeds = entries.map(
+      (entry) => entry.username || entry.userIdentifier || entry.identifier || ""
+    );
+    return resolveUserDisplayNames(seeds, dataSource).then((resolved) =>
+      entries.map((entry, index) => ({
+        ...entry,
+        displayName:
+          resolved[index] || entry.username || entry.userIdentifier || entry.identifier || ""
+      }))
+    );
+  };
+
+  const dedupeUsers = (users) => {
+    const unique = [];
+    const seen = new Set();
+    users.forEach((user) => {
+      if (!user) {
+        return;
+      }
+      const name = String(user).trim();
+      if (!name || seen.has(name)) {
+        return;
+      }
+      seen.add(name);
+      unique.push(name);
+    });
+    return unique;
+  };
+
+  const finalizeActiveConnectionInfo = (connectionId, entries, dataSource, error) => {
+    return resolveActiveConnectionEntries(entries, dataSource).then((resolvedEntries) => {
+      const names = resolvedEntries.map((entry) => entry.displayName).filter(Boolean);
+      const info = {
+        entries: resolvedEntries,
+        users: dedupeUsers(names),
+        watch: resolvedEntries.find((entry) => entry.connectable && entry.identifier) || null,
+        dataSource,
+        error: !!error
+      };
+      activeUserCache.set(connectionId, {
+        ...info,
+        fetchedAt: Date.now(),
+        promise: null
+      });
+      return info;
+    });
   };
 
   const fetchActiveConnections = async (connectionId, includeToken, dataSource) => {
@@ -737,7 +705,7 @@
     }
     const promise = requestActiveConnectionsIndex(dataSource)
       .then((payload) => {
-        const map = extractActiveUsersByConnection(payload);
+        const map = extractActiveConnectionsByConnection(payload);
         activeConnectionsIndexCache.set(dataSource, {
           map,
           fetchedAt: Date.now(),
@@ -834,7 +802,13 @@
 
   const fetchActiveUsersForConnection = (connectionId) => {
     if (!connectionId) {
-      return Promise.resolve([]);
+      return Promise.resolve({
+        entries: [],
+        users: [],
+        watch: null,
+        dataSource: getDataSource(),
+        error: false
+      });
     }
     const cached = activeUserCache.get(connectionId);
     if (cached) {
@@ -842,60 +816,28 @@
         return cached.promise;
       }
       if (isActiveUserCacheFresh(cached)) {
-        return Promise.resolve(cached.users || []);
+        return Promise.resolve(cached);
       }
     }
     const promise = getActiveConnectionsIndex()
       .then(({ map, error, dataSource }) => {
         const key = String(connectionId);
-        if (map && map.size) {
-          const users = map.get(key) || [];
-          return resolveUserDisplayNames(users, dataSource).then((resolved) => {
-            activeUserCache.set(connectionId, {
-              users: resolved,
-              fetchedAt: Date.now(),
-              error: false
-            });
-            return resolved;
-          });
+        const entries = (map && map.get(key)) || [];
+        if (entries.length) {
+          return finalizeActiveConnectionInfo(connectionId, entries, dataSource, false);
         }
         if (!error && map && map.size === 0) {
-          activeUserCache.set(connectionId, {
-            users: [],
-            fetchedAt: Date.now(),
-            error: false
-          });
-          return [];
+          return finalizeActiveConnectionInfo(connectionId, [], dataSource, false);
         }
         return requestActiveConnections(connectionId, dataSource)
           .then((payload) => {
-            const users = extractActiveUsernames(payload);
-            return resolveUserDisplayNames(users, dataSource).then((resolved) => {
-              activeUserCache.set(connectionId, {
-                users: resolved,
-                fetchedAt: Date.now(),
-                error: false
-              });
-              return resolved;
-            });
+            const fallbackMap = extractActiveConnectionsByConnection(payload);
+            const fallbackEntries = fallbackMap.get(key) || [];
+            return finalizeActiveConnectionInfo(connectionId, fallbackEntries, dataSource, false);
           })
-          .catch(() => {
-            activeUserCache.set(connectionId, {
-              users: [],
-              fetchedAt: Date.now(),
-              error: true
-            });
-            return [];
-          });
+          .catch(() => finalizeActiveConnectionInfo(connectionId, [], dataSource, true));
       })
-      .catch(() => {
-        activeUserCache.set(connectionId, {
-          users: [],
-          fetchedAt: Date.now(),
-          error: true
-        });
-        return [];
-      });
+      .catch(() => finalizeActiveConnectionInfo(connectionId, [], getDataSource(), true));
     activeUserCache.set(connectionId, { promise, fetchedAt: Date.now(), error: false });
     return promise;
   };
@@ -912,21 +854,31 @@
     return `${users.slice(0, maxVisible).join(", ")} +${remaining}`;
   };
 
-  const updateActiveUsersElement = (element, users) => {
+  const updateActiveUsersElement = (element, info) => {
     if (!element || !element.isConnected) {
       return;
     }
-    if (!Array.isArray(users) || users.length === 0) {
+    const users = info && Array.isArray(info.users) ? info.users : [];
+    if (!users.length) {
       element.textContent = "";
       element.hidden = true;
       element.classList.remove("is-active");
       element.removeAttribute("title");
+      element.dataset.activeConnectionId = "";
+      element.dataset.activeConnectionDataSource = "";
       return;
     }
     element.textContent = `In gebruik door: ${formatActiveUserList(users)}`;
     element.title = users.join(", ");
     element.hidden = false;
     element.classList.add("is-active");
+    if (info && info.watch) {
+      element.dataset.activeConnectionId = info.watch.identifier;
+      element.dataset.activeConnectionDataSource = info.dataSource || getDataSource();
+    } else {
+      element.dataset.activeConnectionId = "";
+      element.dataset.activeConnectionDataSource = "";
+    }
   };
 
   const scoreConnection = (connection, queryLower) => {
@@ -1056,6 +1008,28 @@
       users.hidden = true;
       mainButton.appendChild(users);
 
+      const watchButton = document.createElement("button");
+      watchButton.type = "button";
+      watchButton.className = "msp-toolbar__result-watch";
+      watchButton.dataset.connectionId = match.id;
+      watchButton.hidden = true;
+      watchButton.setAttribute("aria-label", `Meekijken bij ${match.name}`);
+      watchButton.textContent = "Meekijken";
+      watchButton.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const activeConnectionId = watchButton.dataset.activeConnectionId;
+        if (!activeConnectionId) {
+          return;
+        }
+        const dataSource = watchButton.dataset.activeConnectionDataSource || getDataSource();
+        navigateToActiveConnection(activeConnectionId, {
+          openInNewTab: shouldOpenInNewTab(event),
+          dataSource
+        });
+      });
+      mainButton.appendChild(watchButton);
+
       const openButton = document.createElement("button");
       openButton.type = "button";
       openButton.className = "msp-toolbar__result-open";
@@ -1073,14 +1047,32 @@
       results.appendChild(item);
 
       fetchActiveUsersForConnection(match.id)
-        .then((activeUsers) => {
+        .then((info) => {
           if (!users.isConnected || users.dataset.connectionId !== match.id) {
             return;
           }
-          updateActiveUsersElement(users, activeUsers);
+          updateActiveUsersElement(users, info);
+          if (info.watch && info.watch.identifier) {
+            watchButton.hidden = false;
+            watchButton.dataset.activeConnectionId = info.watch.identifier;
+            watchButton.dataset.activeConnectionDataSource =
+              info.dataSource || getDataSource();
+            const label =
+              info.watch.displayName || info.watch.username || `actieve sessie`;
+            watchButton.title = `Meekijken met ${label}`;
+          } else {
+            watchButton.hidden = true;
+            watchButton.dataset.activeConnectionId = "";
+            watchButton.dataset.activeConnectionDataSource = "";
+            watchButton.removeAttribute("title");
+          }
         })
         .catch(() => {
-          updateActiveUsersElement(users, []);
+          updateActiveUsersElement(users, { users: [] });
+          watchButton.hidden = true;
+          watchButton.dataset.activeConnectionId = "";
+          watchButton.dataset.activeConnectionDataSource = "";
+          watchButton.removeAttribute("title");
         });
     });
     results.hidden = matches.length === 0;
@@ -1097,34 +1089,53 @@
       .replace(/[+/=]/g, (char) => ({ "+": "-", "/": "_", "=": "" }[char]));
   };
 
-  const buildClientIdentifier = (connectionId) => {
-    const id = String(connectionId);
+  const getClientIdentifierService = () => {
     const injector = getAngularInjector();
-    const dataSource = getDataSource();
-    if (injector) {
-      try {
-        const ClientIdentifier = injector.get("ClientIdentifier");
-        if (ClientIdentifier && typeof ClientIdentifier.toString === "function") {
-          const type =
-            (ClientIdentifier.Types && ClientIdentifier.Types.CONNECTION) || "c";
-          return ClientIdentifier.toString({ id, type, dataSource });
-        }
-      } catch (error) {
-        // Ignore and fall back to local encoding.
-      }
+    if (!injector) {
+      return window.Guacamole && window.Guacamole.ClientIdentifier
+        ? window.Guacamole.ClientIdentifier
+        : null;
     }
-    if (
-      window.Guacamole &&
-      window.Guacamole.ClientIdentifier &&
-      typeof window.Guacamole.ClientIdentifier.toString === "function"
-    ) {
-      const type =
-        (window.Guacamole.ClientIdentifier.Types &&
-          window.Guacamole.ClientIdentifier.Types.CONNECTION) ||
-        "c";
-      return window.Guacamole.ClientIdentifier.toString({ id, type, dataSource });
+    try {
+      return injector.get("ClientIdentifier");
+    } catch (error) {
+      return window.Guacamole && window.Guacamole.ClientIdentifier
+        ? window.Guacamole.ClientIdentifier
+        : null;
     }
-    return base64urlEncode([id, "c", dataSource].join("\0"));
+  };
+
+  const getClientIdentifierTypes = (service) => {
+    if (service && service.Types) {
+      return service.Types;
+    }
+    return {
+      CONNECTION: "c",
+      CONNECTION_GROUP: "g",
+      ACTIVE_CONNECTION: "a"
+    };
+  };
+
+  const buildClientIdentifier = (identifier, options = {}) => {
+    const id = String(identifier);
+    const dataSource = options.dataSource || getDataSource();
+    const service = getClientIdentifierService();
+    const types = getClientIdentifierTypes(service);
+    const type = options.type || types.CONNECTION || "c";
+    if (service && typeof service.toString === "function") {
+      return service.toString({ id, type, dataSource });
+    }
+    return base64urlEncode([id, type, dataSource].join("\0"));
+  };
+
+  const buildActiveConnectionIdentifier = (activeConnectionId, options = {}) => {
+    const service = getClientIdentifierService();
+    const types = getClientIdentifierTypes(service);
+    const dataSource = options.dataSource || getDataSource();
+    return buildClientIdentifier(activeConnectionId, {
+      type: options.type || types.ACTIVE_CONNECTION || "a",
+      dataSource
+    });
   };
 
   const buildClientHash = (connectionId) => {
@@ -1139,6 +1150,37 @@
     const targetHash = buildClientHash(connectionId);
     const { origin, pathname, search } = window.location;
     return `${origin}${pathname}${search}${targetHash}`;
+  };
+
+  const buildActiveConnectionHash = (activeConnectionId, options = {}) => {
+    const clientIdentifier = buildActiveConnectionIdentifier(activeConnectionId, {
+      dataSource: options.dataSource
+    });
+    if (!clientIdentifier) {
+      return null;
+    }
+    const hash = window.location.hash || "";
+    const [, hashQuery = ""] = hash.split("?");
+    const querySuffix = hashQuery ? `?${hashQuery}` : "";
+    return `#/client/${clientIdentifier}${querySuffix}`;
+  };
+
+  const navigateToActiveConnection = (activeConnectionId, options = {}) => {
+    if (!activeConnectionId) {
+      return;
+    }
+    const { openInNewTab = false, dataSource } = options;
+    const targetHash = buildActiveConnectionHash(activeConnectionId, { dataSource });
+    if (!targetHash) {
+      return;
+    }
+    if (openInNewTab) {
+      const { origin, pathname, search } = window.location;
+      const targetUrl = `${origin}${pathname}${search}${targetHash}`;
+      window.open(targetUrl, "_blank", "noopener");
+      return;
+    }
+    window.location.hash = targetHash;
   };
 
   const buildClientGroupHash = (groupId) => {
