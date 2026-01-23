@@ -503,14 +503,16 @@
 
   const requestUsersIndex = async (dataSource) => {
     const token = getAuthToken();
-    try {
-      return await fetchUsersIndex(false, dataSource);
-    } catch (error) {
-      if (token && (error.status === 401 || error.status === 403)) {
-        return fetchUsersIndex(true, dataSource);
+    if (token) {
+      try {
+        return await fetchUsersIndex(true, dataSource);
+      } catch (error) {
+        if (error.status !== 401 && error.status !== 403) {
+          throw error;
+        }
       }
-      throw error;
     }
+    return fetchUsersIndex(false, dataSource);
   };
 
   const isUserDirectoryFresh = (entry) => {
@@ -655,14 +657,16 @@
 
   const requestActiveConnections = async (connectionId, dataSource) => {
     const token = getAuthToken();
-    try {
-      return await fetchActiveConnections(connectionId, false, dataSource);
-    } catch (error) {
-      if (token && (error.status === 401 || error.status === 403)) {
-        return fetchActiveConnections(connectionId, true, dataSource);
+    if (token) {
+      try {
+        return await fetchActiveConnections(connectionId, true, dataSource);
+      } catch (error) {
+        if (error.status !== 401 && error.status !== 403) {
+          throw error;
+        }
       }
-      throw error;
     }
+    return fetchActiveConnections(connectionId, false, dataSource);
   };
 
   const requestActiveConnectionsAcrossDataSources = async (connectionId, preferredDataSource) => {
@@ -697,14 +701,16 @@
 
   const requestActiveConnectionsIndex = async (dataSource) => {
     const token = getAuthToken();
-    try {
-      return await fetchActiveConnectionsIndex(false, dataSource);
-    } catch (error) {
-      if (token && (error.status === 401 || error.status === 403)) {
-        return fetchActiveConnectionsIndex(true, dataSource);
+    if (token) {
+      try {
+        return await fetchActiveConnectionsIndex(true, dataSource);
+      } catch (error) {
+        if (error.status !== 401 && error.status !== 403) {
+          throw error;
+        }
       }
-      throw error;
     }
+    return fetchActiveConnectionsIndex(false, dataSource);
   };
 
   const activeConnectionsIndexCache = new Map();
