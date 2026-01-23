@@ -345,7 +345,7 @@
     );
   };
 
-  const createActiveConnectionEntry = (entry, fallbackIdentifier) => {
+  const createActiveConnectionEntry = (entry, fallbackIdentifier, dataSource = null) => {
     if (!entry || typeof entry !== "object") {
       return null;
     }
@@ -364,28 +364,36 @@
       connectionIdentifier: String(connectionIdentifier),
       username: username ? String(username).trim() : "",
       connectable: entry.connectable !== false,
+      dataSource,
       raw: entry
     };
   };
 
-  const collectActiveConnectionEntries = (value, map = new Map(), fallbackIdentifier = null) => {
+  const collectActiveConnectionEntries = (
+    value,
+    map = new Map(),
+    fallbackIdentifier = null,
+    dataSource = null
+  ) => {
     if (!value) {
       return map;
     }
     if (Array.isArray(value)) {
-      value.forEach((item) => collectActiveConnectionEntries(item, map, fallbackIdentifier));
+      value.forEach((item) =>
+        collectActiveConnectionEntries(item, map, fallbackIdentifier, dataSource)
+      );
       return map;
     }
     if (typeof value !== "object") {
       return map;
     }
     if (value.data) {
-      collectActiveConnectionEntries(value.data, map, fallbackIdentifier);
+      collectActiveConnectionEntries(value.data, map, fallbackIdentifier, dataSource);
     }
     if (value.activeConnections) {
-      collectActiveConnectionEntries(value.activeConnections, map, fallbackIdentifier);
+      collectActiveConnectionEntries(value.activeConnections, map, fallbackIdentifier, dataSource);
     }
-    const entry = createActiveConnectionEntry(value, fallbackIdentifier);
+    const entry = createActiveConnectionEntry(value, fallbackIdentifier, dataSource);
     if (entry) {
       const key = entry.connectionIdentifier;
       const existing = map.get(key) || [];
@@ -394,12 +402,13 @@
       return map;
     }
     Object.entries(value).forEach(([key, nested]) => {
-      collectActiveConnectionEntries(nested, map, key);
+      collectActiveConnectionEntries(nested, map, key, dataSource);
     });
     return map;
   };
 
-  const extractActiveConnectionsByConnection = (payload) => collectActiveConnectionEntries(payload);
+  const extractActiveConnectionsByConnection = (payload, dataSource = null) =>
+    collectActiveConnectionEntries(payload, new Map(), null, dataSource);
 
   const resolveActiveConnectionEntries = (entries, dataSource) => {
     if (!entries.length) {
@@ -437,11 +446,14 @@
   const finalizeActiveConnectionInfo = (connectionId, entries, dataSource, error) => {
     return resolveActiveConnectionEntries(entries, dataSource).then((resolvedEntries) => {
       const names = resolvedEntries.map((entry) => entry.displayName).filter(Boolean);
+      const watch =
+        resolvedEntries.find((entry) => entry.connectable && entry.identifier) || null;
+      const usedDataSource = (watch && watch.dataSource) || dataSource;
       const info = {
         entries: resolvedEntries,
         users: dedupeUsers(names),
-        watch: resolvedEntries.find((entry) => entry.connectable && entry.identifier) || null,
-        dataSource,
+        watch,
+        dataSource: usedDataSource,
         error: !!error
       };
       activeUserCache.set(connectionId, {
@@ -718,7 +730,7 @@
     }
     const promise = requestActiveConnectionsIndex(dataSource)
       .then((payload) => {
-        const map = extractActiveConnectionsByConnection(payload);
+        const map = extractActiveConnectionsByConnection(payload, dataSource);
         activeConnectionsIndexCache.set(dataSource, {
           map,
           fetchedAt: Date.now(),
@@ -752,8 +764,18 @@
     const results = await Promise.all(
       candidates.map((dataSource) => getActiveConnectionsIndexForDataSource(dataSource))
     );
-    let best = results[0];
+    let best = null;
     let bestScore = -1;
+    const aggregatedMap = new Map();
+    results.forEach((result) => {
+      if (!result || !result.map) {
+        return;
+      }
+      result.map.forEach((entries, key) => {
+        const existing = aggregatedMap.get(key) || [];
+        aggregatedMap.set(key, existing.concat(entries));
+      });
+    });
     results.forEach((result) => {
       if (!result || result.error) {
         return;
@@ -764,7 +786,13 @@
         best = result;
       }
     });
-    return best || { map: new Map(), error: true, dataSource: candidates[0] };
+    const preferred = best || { dataSource: candidates[0] };
+    const aggregatedError = results.every((result) => !result || result.error);
+    return {
+      map: aggregatedMap,
+      error: aggregatedError,
+      dataSource: preferred.dataSource || candidates[0]
+    };
   };
 
   const getActiveConnectionsIndex = () => {
@@ -844,7 +872,7 @@
         }
         return requestActiveConnections(connectionId, dataSource)
           .then((payload) => {
-            const fallbackMap = extractActiveConnectionsByConnection(payload);
+            const fallbackMap = extractActiveConnectionsByConnection(payload, dataSource);
             const fallbackEntries = fallbackMap.get(key) || [];
             return finalizeActiveConnectionInfo(connectionId, fallbackEntries, dataSource, false);
           })
