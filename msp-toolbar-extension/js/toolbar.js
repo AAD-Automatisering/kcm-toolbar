@@ -1015,9 +1015,10 @@
       watchButton.hidden = true;
       watchButton.setAttribute("aria-label", `Meekijken bij ${match.name}`);
       watchButton.innerHTML = `
-        <svg class="msp-toolbar__result-open-icon" width="24" height="24" fill="none" viewBox="0 0 24 24"
+        <svg width="24" height="24" fill="none" viewBox="0 0 24 24"
           xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-          <path d="M6.25 4.75a1.5 1.5 0 0 0-1.5 1.5v11.5a1.5 1.5 0 0 0 1.5 1.5h11.5a1.5 1.5 0 0 0 1.5-1.5v-4a1 1 0 1 1 2 0v4a3.5 3.5 0 0 1-3.5 3.5H6.25a3.5 3.5 0 0 1-3.5-3.5V6.25a3.5 3.5 0 0 1 3.5-3.5h4a1 1 0 1 1 0 2h-4Zm6.5-1a1 1 0 0 1 1-1h6.5a1 1 0 0 1 1 1v6.5a1 1 0 1 1-2 0V6.164l-4.793 4.793a1 1 0 1 1-1.414-1.414l4.793-4.793H13.75a1 1 0 0 1-1-1Z" fill="#ffffff"/>
+          <path d="M4.75 4A2.75 2.75 0 0 0 2 6.75v10.5A2.75 2.75 0 0 0 4.75 20h6.748A6.5 6.5 0 0 1 22 12.81V6.75A2.75 2.75 0 0 0 19.25 4H4.75Z" fill="#ffa94d"/>
+          <path d="M23 17.5a5.5 5.5 0 1 0-11 0 5.5 5.5 0 0 0 11 0Zm-5 .5.001 2.503a.5.5 0 1 1-1 0V18h-2.505a.5.5 0 1 1 0-1H17v-2.5a.5.5 0 1 1 1 0V17h2.503a.5.5 0 1 1 0 1h-2.502Z" fill="#ffa94d"/>
         </svg>
       `;
       watchButton.addEventListener("click", (event) => {
