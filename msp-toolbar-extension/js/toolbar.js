@@ -1739,16 +1739,26 @@
       event.preventDefault();
       event.stopPropagation();
       const services = getGuacServices();
+      const replaceClient = (clientId) => {
+        if (
+          services &&
+          services.guacClientManager &&
+          typeof services.guacClientManager.replaceManagedClient === "function"
+        ) {
+          try {
+            services.guacClientManager.replaceManagedClient(clientId);
+          } catch (error) {
+            // Ignore replace errors; we still want to reopen the group.
+          }
+        }
+      };
       if (
         services &&
-        services.guacClientManager &&
-        typeof services.guacClientManager.removeManagedClientGroup === "function"
+        services.ManagedClientGroup &&
+        typeof services.ManagedClientGroup.getClientIdentifiers === "function"
       ) {
-        try {
-          services.guacClientManager.removeManagedClientGroup(groupId);
-        } catch (error) {
-          // Ignore removal errors; we still want to reopen the group.
-        }
+        const clientIds = services.ManagedClientGroup.getClientIdentifiers(groupId) || [];
+        clientIds.forEach(replaceClient);
       }
       navigateToClientGroup(groupId, { openInNewTab: false });
       resetCaches();
