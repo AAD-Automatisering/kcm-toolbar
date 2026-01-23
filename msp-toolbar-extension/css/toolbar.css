@@ -307,7 +307,7 @@
 .msp-toolbar__result-watch svg {
   width: 16px;
   height: 16px;
-  fill: currentColor;
+  display: block;
 }
 
 .msp-toolbar__result-watch:hover,
