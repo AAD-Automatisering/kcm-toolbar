@@ -292,8 +292,8 @@
   min-width: 28px;
   min-height: 28px;
   border-radius: 6px;
-  border: 1px solid var(--msp-border);
-  background: transparent;
+  border: 1px solid #ffa94d;
+  background: rgba(255, 169, 77, 0.12);
   color: #ffa94d;
   cursor: pointer;
   flex-shrink: 0;
