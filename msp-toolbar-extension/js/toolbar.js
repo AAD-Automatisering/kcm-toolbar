@@ -1710,6 +1710,11 @@
     syncTabBar();
   };
 
+  const refreshTabBar = () => {
+    tabSnapshot = "";
+    syncTabBar();
+  };
+
   const handleTabInteraction = (event) => {
     const tab = event.target.closest(".msp-toolbar__tab");
     if (!tab) {
@@ -1723,7 +1728,7 @@
     if (reconnectClicked) {
       event.preventDefault();
       event.stopPropagation();
-      window.location.reload();
+      refreshTabBar();
       return;
     }
     const closeClicked = event.target.closest(".msp-toolbar__tab-close");
