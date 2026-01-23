@@ -121,44 +121,7 @@
     return null;
   };
 
-  const getDataSource = () => {
-    const injector = getAngularInjector();
-    if (injector) {
-      try {
-        const authService = injector.get("authenticationService");
-        if (authService) {
-          if (typeof authService.getDataSource === "function") {
-            const value = authService.getDataSource();
-            if (value) {
-              return value;
-            }
-          }
-          const currentUser =
-            typeof authService.getCurrentUser === "function" ? authService.getCurrentUser() : null;
-          if (currentUser && currentUser.dataSource) {
-            return currentUser.dataSource;
-          }
-        }
-      } catch (error) {
-        // Ignore and fall back to storage/default.
-      }
-    }
-    try {
-      const stored =
-        window.sessionStorage?.getItem("dataSource") ||
-        window.sessionStorage?.getItem("guacDataSource") ||
-        window.sessionStorage?.getItem("kcmDataSource") ||
-        window.localStorage?.getItem("dataSource") ||
-        window.localStorage?.getItem("guacDataSource") ||
-        window.localStorage?.getItem("kcmDataSource");
-      if (stored) {
-        return stored;
-      }
-    } catch (error) {
-      // Ignore storage access errors.
-    }
-    return "postgresql";
-  };
+  const getDataSource = () => "postgresql";
 
   const getAuthToken = () => getTokenFromApp();
 
