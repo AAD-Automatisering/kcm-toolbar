@@ -310,8 +310,8 @@
   display: block;
 }
 
-.msp-toolbar__result-watch-icon path {
-  fill: #ffa94d !important;
+.msp-toolbar__result-watch svg path {
+  fill: #ffffff;
 }
 
 .msp-toolbar__result-watch:hover,
