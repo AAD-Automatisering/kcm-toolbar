@@ -121,7 +121,44 @@
     return null;
   };
 
-  const getDataSource = () => "postgresql";
+  const getDataSource = () => {
+    const injector = getAngularInjector();
+    if (injector) {
+      try {
+        const authService = injector.get("authenticationService");
+        if (authService) {
+          if (typeof authService.getDataSource === "function") {
+            const value = authService.getDataSource();
+            if (value) {
+              return value;
+            }
+          }
+          const currentUser =
+            typeof authService.getCurrentUser === "function" ? authService.getCurrentUser() : null;
+          if (currentUser && currentUser.dataSource) {
+            return currentUser.dataSource;
+          }
+        }
+      } catch (error) {
+        // Ignore and fall back to storage/default.
+      }
+    }
+    try {
+      const stored =
+        window.sessionStorage?.getItem("dataSource") ||
+        window.sessionStorage?.getItem("guacDataSource") ||
+        window.sessionStorage?.getItem("kcmDataSource") ||
+        window.localStorage?.getItem("dataSource") ||
+        window.localStorage?.getItem("guacDataSource") ||
+        window.localStorage?.getItem("kcmDataSource");
+      if (stored) {
+        return stored;
+      }
+    } catch (error) {
+      // Ignore storage access errors.
+    }
+    return "postgresql";
+  };
 
   const getAuthToken = () => getTokenFromApp();
 
@@ -178,11 +215,27 @@
 
   const buildActiveConnectionsUrl = (connectionId, options = {}) => {
     const includeToken = options.includeToken !== false;
-    const dataSource = getDataSource();
+    const dataSource = options.dataSource || getDataSource();
     const apiRoot = getApiRoot();
     const basePath = `${apiRoot}/api/session/data/${encodeURIComponent(
       dataSource
     )}/connections/${encodeURIComponent(connectionId)}/activeConnections`;
+    const token = getAuthToken();
+    if (!token || !includeToken) {
+      return basePath;
+    }
+    const url = new URL(basePath, window.location.origin);
+    url.searchParams.set("token", token);
+    return url.toString();
+  };
+
+  const buildActiveConnectionsIndexUrl = (options = {}) => {
+    const includeToken = options.includeToken !== false;
+    const dataSource = options.dataSource || getDataSource();
+    const apiRoot = getApiRoot();
+    const basePath = `${apiRoot}/api/session/data/${encodeURIComponent(
+      dataSource
+    )}/activeConnections`;
     const token = getAuthToken();
     if (!token || !includeToken) {
       return basePath;
@@ -298,6 +351,8 @@
     return Date.now() - entry.fetchedAt < ttl;
   };
 
+  const isActiveConnectionsIndexFresh = (entry) => isActiveUserCacheFresh(entry);
+
   const extractActiveUsernames = (payload) => {
     const collectEntries = (value) => {
       if (!value) {
@@ -355,8 +410,93 @@
     return unique;
   };
 
-  const fetchActiveConnections = async (connectionId, includeToken) => {
-    const url = buildActiveConnectionsUrl(connectionId, { includeToken });
+  const getConnectionIdFromActiveEntry = (entry) => {
+    if (!entry || typeof entry !== "object") {
+      return null;
+    }
+    return (
+      entry.connectionIdentifier ||
+      entry.connectionId ||
+      entry.connectionIdentifierId ||
+      (entry.connection &&
+        (entry.connection.identifier || entry.connection.id || entry.connection.connectionIdentifier)) ||
+      entry.identifier ||
+      entry.id ||
+      null
+    );
+  };
+
+  const extractActiveUsersByConnection = (payload) => {
+    const map = new Map();
+    const addUsers = (connectionId, users) => {
+      if (!connectionId || !users || !users.length) {
+        return;
+      }
+      const key = String(connectionId);
+      const existing = map.get(key) || [];
+      const seen = new Set(existing);
+      users.forEach((user) => {
+        if (!seen.has(user)) {
+          seen.add(user);
+          existing.push(user);
+        }
+      });
+      map.set(key, existing);
+    };
+    const handleEntry = (entry, fallbackId = null) => {
+      if (!entry) {
+        return;
+      }
+      if (Array.isArray(entry)) {
+        const users = extractActiveUsernames(entry);
+        if (fallbackId) {
+          addUsers(fallbackId, users);
+          return;
+        }
+        entry.forEach((item) => handleEntry(item, null));
+        return;
+      }
+      if (typeof entry !== "object") {
+        return;
+      }
+      const connectionId = getConnectionIdFromActiveEntry(entry) || fallbackId;
+      const users = extractActiveUsernames(
+        entry.activeConnections || entry.users || entry.activeUsers || entry.connections || entry
+      );
+      if (connectionId) {
+        addUsers(connectionId, users);
+      }
+      if (entry.activeConnections && Array.isArray(entry.activeConnections)) {
+        entry.activeConnections.forEach((item) => handleEntry(item, null));
+      }
+    };
+
+    if (!payload) {
+      return map;
+    }
+    if (payload.data) {
+      return extractActiveUsersByConnection(payload.data);
+    }
+    if (payload.activeConnections) {
+      handleEntry(payload.activeConnections, null);
+    }
+    if (Array.isArray(payload)) {
+      payload.forEach((entry) => handleEntry(entry, null));
+      return map;
+    }
+    if (typeof payload === "object") {
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value && (Array.isArray(value) || typeof value === "object")) {
+          handleEntry(value, key);
+        }
+      });
+      handleEntry(payload, null);
+    }
+    return map;
+  };
+
+  const fetchActiveConnections = async (connectionId, includeToken, dataSource) => {
+    const url = buildActiveConnectionsUrl(connectionId, { includeToken, dataSource });
     const response = await fetch(url, { credentials: "same-origin" });
     if (!response.ok) {
       const error = new Error(`HTTP ${response.status}`);
@@ -366,16 +506,187 @@
     return response.json();
   };
 
-  const requestActiveConnections = async (connectionId) => {
+  const fetchActiveConnectionsIndex = async (includeToken, dataSource) => {
+    const url = buildActiveConnectionsIndexUrl({ includeToken, dataSource });
+    const response = await fetch(url, { credentials: "same-origin" });
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    return response.json();
+  };
+
+  const requestActiveConnections = async (connectionId, dataSource) => {
     const token = getAuthToken();
     try {
-      return await fetchActiveConnections(connectionId, false);
+      return await fetchActiveConnections(connectionId, false, dataSource);
     } catch (error) {
       if (token && (error.status === 401 || error.status === 403)) {
-        return fetchActiveConnections(connectionId, true);
+        return fetchActiveConnections(connectionId, true, dataSource);
       }
       throw error;
     }
+  };
+
+  const requestActiveConnectionsIndex = async (dataSource) => {
+    const token = getAuthToken();
+    try {
+      return await fetchActiveConnectionsIndex(false, dataSource);
+    } catch (error) {
+      if (token && (error.status === 401 || error.status === 403)) {
+        return fetchActiveConnectionsIndex(true, dataSource);
+      }
+      throw error;
+    }
+  };
+
+  const activeConnectionsIndexCache = new Map();
+  let activeConnectionsIndexSelectionCache = null;
+
+  const getCandidateDataSources = () => {
+    const candidates = new Set();
+    const primary = getDataSource();
+    if (primary) {
+      candidates.add(primary);
+    }
+    candidates.add("postgresql");
+    candidates.add("postgresql-shared");
+    return Array.from(candidates);
+  };
+
+  const getConnectionIdSet = () => {
+    if (!Array.isArray(connectionIndex) || connectionIndex.length === 0) {
+      return new Set();
+    }
+    return new Set(connectionIndex.map((connection) => String(connection.id)));
+  };
+
+  const countMatches = (map, idSet) => {
+    if (!map || !map.size || !idSet || idSet.size === 0) {
+      return 0;
+    }
+    let matches = 0;
+    map.forEach((_, key) => {
+      if (idSet.has(String(key))) {
+        matches += 1;
+      }
+    });
+    return matches;
+  };
+
+  const getActiveConnectionsIndexForDataSource = (dataSource) => {
+    if (!dataSource) {
+      return Promise.resolve({ map: new Map(), error: true, dataSource: null });
+    }
+    const cached = activeConnectionsIndexCache.get(dataSource);
+    if (cached) {
+      if (cached.promise) {
+        return cached.promise;
+      }
+      if (isActiveConnectionsIndexFresh(cached)) {
+        return Promise.resolve({
+          map: cached.map || new Map(),
+          error: !!cached.error,
+          dataSource
+        });
+      }
+    }
+    const promise = requestActiveConnectionsIndex(dataSource)
+      .then((payload) => {
+        const map = extractActiveUsersByConnection(payload);
+        activeConnectionsIndexCache.set(dataSource, {
+          map,
+          fetchedAt: Date.now(),
+          error: false
+        });
+        return { map, error: false, dataSource };
+      })
+      .catch(() => {
+        const map = new Map();
+        activeConnectionsIndexCache.set(dataSource, {
+          map,
+          fetchedAt: Date.now(),
+          error: true
+        });
+        return { map, error: true, dataSource };
+      });
+    activeConnectionsIndexCache.set(dataSource, {
+      promise,
+      fetchedAt: Date.now(),
+      error: false
+    });
+    return promise;
+  };
+
+  const selectActiveConnectionsIndex = async () => {
+    const candidates = getCandidateDataSources();
+    if (!candidates.length) {
+      return { map: new Map(), error: true, dataSource: null };
+    }
+    const idSet = getConnectionIdSet();
+    const results = await Promise.all(
+      candidates.map((dataSource) => getActiveConnectionsIndexForDataSource(dataSource))
+    );
+    let best = results[0];
+    let bestScore = -1;
+    results.forEach((result) => {
+      if (!result || result.error) {
+        return;
+      }
+      const score = idSet.size ? countMatches(result.map, idSet) : result.map.size;
+      if (score > bestScore) {
+        bestScore = score;
+        best = result;
+      }
+    });
+    return best || { map: new Map(), error: true, dataSource: candidates[0] };
+  };
+
+  const getActiveConnectionsIndex = () => {
+    if (activeConnectionsIndexSelectionCache) {
+      if (activeConnectionsIndexSelectionCache.promise) {
+        return activeConnectionsIndexSelectionCache.promise;
+      }
+      if (isActiveConnectionsIndexFresh(activeConnectionsIndexSelectionCache)) {
+        return Promise.resolve({
+          map: activeConnectionsIndexSelectionCache.map || new Map(),
+          error: !!activeConnectionsIndexSelectionCache.error,
+          dataSource: activeConnectionsIndexSelectionCache.dataSource || getDataSource()
+        });
+      }
+    }
+    const promise = selectActiveConnectionsIndex()
+      .then((result) => {
+        activeConnectionsIndexSelectionCache = {
+          map: result.map || new Map(),
+          fetchedAt: Date.now(),
+          error: !!result.error,
+          dataSource: result.dataSource || getDataSource()
+        };
+        return {
+          map: result.map || new Map(),
+          error: !!result.error,
+          dataSource: result.dataSource || getDataSource()
+        };
+      })
+      .catch(() => {
+        const map = new Map();
+        activeConnectionsIndexSelectionCache = {
+          map,
+          fetchedAt: Date.now(),
+          error: true,
+          dataSource: getDataSource()
+        };
+        return { map, error: true, dataSource: getDataSource() };
+      });
+    activeConnectionsIndexSelectionCache = {
+      promise,
+      fetchedAt: Date.now(),
+      error: false,
+      dataSource: getDataSource()
+    };
+    return promise;
   };
 
   const fetchActiveUsersForConnection = (connectionId) => {
@@ -391,15 +702,44 @@
         return Promise.resolve(cached.users || []);
       }
     }
-    const promise = requestActiveConnections(connectionId)
-      .then((payload) => {
-        const users = extractActiveUsernames(payload);
-        activeUserCache.set(connectionId, {
-          users,
-          fetchedAt: Date.now(),
-          error: false
-        });
-        return users;
+    const promise = getActiveConnectionsIndex()
+      .then(({ map, error, dataSource }) => {
+        const key = String(connectionId);
+        if (map && map.size) {
+          const users = map.get(key) || [];
+          activeUserCache.set(connectionId, {
+            users,
+            fetchedAt: Date.now(),
+            error: false
+          });
+          return users;
+        }
+        if (!error && map && map.size === 0) {
+          activeUserCache.set(connectionId, {
+            users: [],
+            fetchedAt: Date.now(),
+            error: false
+          });
+          return [];
+        }
+        return requestActiveConnections(connectionId, dataSource)
+          .then((payload) => {
+            const users = extractActiveUsernames(payload);
+            activeUserCache.set(connectionId, {
+              users,
+              fetchedAt: Date.now(),
+              error: false
+            });
+            return users;
+          })
+          .catch(() => {
+            activeUserCache.set(connectionId, {
+              users: [],
+              fetchedAt: Date.now(),
+              error: true
+            });
+            return [];
+          });
       })
       .catch(() => {
         activeUserCache.set(connectionId, {
