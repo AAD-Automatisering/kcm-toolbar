@@ -373,6 +373,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   margin-right: 2px;
+  font-weight: 400;
+  opacity: 0.72;
 }
 
 .msp-toolbar__tab-count {
