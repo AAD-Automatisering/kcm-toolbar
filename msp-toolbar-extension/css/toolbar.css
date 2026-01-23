@@ -310,6 +310,10 @@
   display: block;
 }
 
+.msp-toolbar__result-watch-icon path {
+  fill: #ffa94d !important;
+}
+
 .msp-toolbar__result-watch:hover,
 .msp-toolbar__result-watch:focus-visible {
   border-color: var(--msp-border-hover);
