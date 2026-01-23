@@ -1015,8 +1015,9 @@
       watchButton.hidden = true;
       watchButton.setAttribute("aria-label", `Meekijken bij ${match.name}`);
       watchButton.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 5C7 5 2.73 8.11 1 12c1.73 3.89 5.999 7 11 7s9.27-3.11 11-7c-1.73-3.89-5.999-7-11-7Zm0 12c-3.03 0-5.5-2.47-5.5-5.5S8.97 6 12 6s5.5 2.47 5.5 5.5S15.03 17 12 17Zm0-9c-1.93 0-3.5 1.57-3.5 3.5S10.07 15 12 15s3.5-1.57 3.5-3.5S13.93 8 12 8Zm0 5.5c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2Z" fill="currentColor"/>
+        <svg class="msp-toolbar__result-icon" width="24" height="24" fill="none" viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+          <path d="M6.25 4.75a1.5 1.5 0 0 0-1.5 1.5v11.5a1.5 1.5 0 0 0 1.5 1.5h11.5a1.5 1.5 0 0 0 1.5-1.5v-4a1 1 0 1 1 2 0v4a3.5 3.5 0 0 1-3.5 3.5H6.25a3.5 3.5 0 0 1-3.5-3.5V6.25a3.5 3.5 0 0 1 3.5-3.5h4a1 1 0 1 1 0 2h-4Zm6.5-1a1 1 0 0 1 1-1h6.5a1 1 0 0 1 1 1v6.5a1 1 0 1 1-2 0V6.164l-4.793 4.793a1 1 0 1 1-1.414-1.414l4.793-4.793H13.75a1 1 0 0 1-1-1Z" fill="currentColor"/>
         </svg>
       `;
       watchButton.addEventListener("click", (event) => {
@@ -1032,7 +1033,6 @@
           dataSource
         });
       });
-      mainButton.appendChild(watchButton);
 
       const openButton = document.createElement("button");
       openButton.type = "button";
@@ -1047,6 +1047,7 @@
       `;
 
       item.appendChild(mainButton);
+      item.appendChild(watchButton);
       item.appendChild(openButton);
       results.appendChild(item);
 
@@ -1056,8 +1057,9 @@
             return;
           }
           updateActiveUsersElement(users, info);
-          const hasSession = info.watch && info.watch.identifier;
-          watchButton.hidden = !hasSession;
+          const hasUsers = Array.isArray(info.users) && info.users.length > 0;
+          const hasSession = hasUsers && info.watch && info.watch.identifier;
+          watchButton.hidden = !(hasUsers && hasSession);
           if (hasSession) {
             watchButton.dataset.activeConnectionId = info.watch.identifier;
             watchButton.dataset.activeConnectionDataSource =
