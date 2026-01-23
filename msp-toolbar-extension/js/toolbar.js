@@ -1710,29 +1710,19 @@
     syncTabBar();
   };
 
-  const refreshTabBar = () => {
-    tabSnapshot = "";
-    syncTabBar();
+  const resetCaches = () => {
+    activeUserCache.clear();
+    userDirectoryCache.clear();
+    activeConnectionsIndexCache.clear();
+    activeConnectionsIndexSelectionCache = null;
+    connectionIndex = null;
+    connectionIndexPromise = null;
   };
 
-  const refreshClientGroup = (groupId) => {
-    if (!groupId) {
-      return;
-    }
-    const services = getGuacServices();
-    if (
-      services &&
-      services.guacClientManager &&
-      typeof services.guacClientManager.removeManagedClientGroup === "function"
-    ) {
-      try {
-        services.guacClientManager.removeManagedClientGroup(groupId);
-      } catch (error) {
-        // Ignore removal errors; we still want to re-open the group.
-      }
-    }
-    navigateToClientGroup(groupId, { openInNewTab: false });
-    setTimeout(refreshTabBar, 150);
+  const refreshTabBar = () => {
+    resetCaches();
+    tabSnapshot = "";
+    syncTabBar();
   };
 
   const handleTabInteraction = (event) => {
@@ -1748,7 +1738,7 @@
       if (reconnectClicked) {
         event.preventDefault();
         event.stopPropagation();
-        refreshClientGroup(groupId);
+        refreshTabBar();
         return;
       }
     const closeClicked = event.target.closest(".msp-toolbar__tab-close");
