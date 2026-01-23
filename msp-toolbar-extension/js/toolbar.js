@@ -1715,6 +1715,26 @@
     syncTabBar();
   };
 
+  const refreshClientGroup = (groupId) => {
+    if (!groupId) {
+      return;
+    }
+    const services = getGuacServices();
+    if (
+      services &&
+      services.guacClientManager &&
+      typeof services.guacClientManager.removeManagedClientGroup === "function"
+    ) {
+      try {
+        services.guacClientManager.removeManagedClientGroup(groupId);
+      } catch (error) {
+        // Ignore removal errors; we still want to re-open the group.
+      }
+    }
+    navigateToClientGroup(groupId, { openInNewTab: false });
+    setTimeout(refreshTabBar, 150);
+  };
+
   const handleTabInteraction = (event) => {
     const tab = event.target.closest(".msp-toolbar__tab");
     if (!tab) {
@@ -1725,12 +1745,12 @@
       return;
     }
     const reconnectClicked = event.target.closest(".msp-toolbar__tab-reconnect");
-    if (reconnectClicked) {
-      event.preventDefault();
-      event.stopPropagation();
-      refreshTabBar();
-      return;
-    }
+      if (reconnectClicked) {
+        event.preventDefault();
+        event.stopPropagation();
+        refreshClientGroup(groupId);
+        return;
+      }
     const closeClicked = event.target.closest(".msp-toolbar__tab-close");
     if (closeClicked) {
       event.preventDefault();
