@@ -665,6 +665,36 @@
     }
   };
 
+  const requestActiveConnectionsAcrossDataSources = async (connectionId, preferredDataSource) => {
+    const candidates = getCandidateDataSources();
+    const ordered = [];
+    if (preferredDataSource) {
+      ordered.push(preferredDataSource);
+    }
+    candidates.forEach((ds) => {
+      if (!ordered.includes(ds)) {
+        ordered.push(ds);
+      }
+    });
+    let lastError = null;
+    for (const dataSource of ordered) {
+      try {
+        const payload = await requestActiveConnections(connectionId, dataSource);
+        return { payload, dataSource };
+      } catch (error) {
+        lastError = error;
+        if (error.status === 401 || error.status === 403 || error.status === 404) {
+          continue;
+        }
+        throw error;
+      }
+    }
+    if (lastError) {
+      throw lastError;
+    }
+    throw new Error("Kon actieve verbindingen niet laden.");
+  };
+
   const requestActiveConnectionsIndex = async (dataSource) => {
     const token = getAuthToken();
     try {
@@ -870,13 +900,18 @@
         if (!error && map && map.size === 0) {
           return finalizeActiveConnectionInfo(connectionId, [], dataSource, false);
         }
-        return requestActiveConnections(connectionId, dataSource)
-          .then((payload) => {
-            const fallbackMap = extractActiveConnectionsByConnection(payload, dataSource);
+        return requestActiveConnectionsAcrossDataSources(connectionId, dataSource)
+          .then(({ payload, dataSource: fallbackDataSource }) => {
+            const fallbackMap = extractActiveConnectionsByConnection(payload, fallbackDataSource);
             const fallbackEntries = fallbackMap.get(key) || [];
-            return finalizeActiveConnectionInfo(connectionId, fallbackEntries, dataSource, false);
+            return finalizeActiveConnectionInfo(
+              connectionId,
+              fallbackEntries,
+              fallbackDataSource,
+              false
+            );
           })
-          .catch(() => finalizeActiveConnectionInfo(connectionId, [], dataSource, true));
+          .catch(() => finalizeActiveConnectionInfo(connectionId, [], dataSource || getDataSource(), true));
       })
       .catch(() => finalizeActiveConnectionInfo(connectionId, [], getDataSource(), true));
     activeUserCache.set(connectionId, { promise, fetchedAt: Date.now(), error: false });
