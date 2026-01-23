@@ -15,6 +15,7 @@
   const TAB_SYNC_INTERVAL = 1000;
   const ACTIVE_USER_CACHE_TTL = 15000;
   const ACTIVE_USER_ERROR_TTL = 20000;
+  const USER_DIRECTORY_TTL = 60000;
 
   let connectionIndex = null;
   let connectionIndexPromise = null;
@@ -23,6 +24,7 @@
   let tabSnapshot = "";
   let tabOrder = [];
   const activeUserCache = new Map();
+  const userDirectoryCache = new Map();
 
   const getAngularInjector = () => {
     const angular = window.angular;
@@ -317,6 +319,15 @@
   const isActiveConnectionsIndexFresh = (entry) => isActiveUserCacheFresh(entry);
 
   const extractActiveUsernames = (payload) => {
+    const isUserLikeObject = (value) =>
+      !!(
+        value &&
+        typeof value === "object" &&
+        (value.username ||
+          value.userName ||
+          value.userIdentifier ||
+          (value.user && value.user.username))
+      );
     const collectEntries = (value) => {
       if (!value) {
         return [];
@@ -325,6 +336,9 @@
         return value;
       }
       if (typeof value === "object") {
+        if (isUserLikeObject(value)) {
+          return [value];
+        }
         if (value.activeConnections) {
           return collectEntries(value.activeConnections);
         }
@@ -467,6 +481,172 @@
       throw error;
     }
     return response.json();
+  };
+
+  const buildUsersIndexUrl = (options = {}) => {
+    const includeToken = options.includeToken !== false;
+    const dataSource = options.dataSource || getDataSource();
+    const apiRoot = getApiRoot();
+    const basePath = `${apiRoot}/api/session/data/${encodeURIComponent(dataSource)}/users`;
+    const token = getAuthToken();
+    if (!token || !includeToken) {
+      return basePath;
+    }
+    const url = new URL(basePath, window.location.origin);
+    url.searchParams.set("token", token);
+    return url.toString();
+  };
+
+  const fetchUsersIndex = async (includeToken, dataSource) => {
+    const url = buildUsersIndexUrl({ includeToken, dataSource });
+    const response = await fetch(url, { credentials: "same-origin" });
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    return response.json();
+  };
+
+  const requestUsersIndex = async (dataSource) => {
+    const token = getAuthToken();
+    try {
+      return await fetchUsersIndex(false, dataSource);
+    } catch (error) {
+      if (token && (error.status === 401 || error.status === 403)) {
+        return fetchUsersIndex(true, dataSource);
+      }
+      throw error;
+    }
+  };
+
+  const isUserDirectoryFresh = (entry) => {
+    if (!entry || typeof entry.fetchedAt !== "number") {
+      return false;
+    }
+    return Date.now() - entry.fetchedAt < USER_DIRECTORY_TTL;
+  };
+
+  const extractUserDirectory = (payload) => {
+    const map = new Map();
+    const addMapping = (key, value) => {
+      if (!key || !value) {
+        return;
+      }
+      const k = String(key);
+      const v = String(value).trim();
+      if (!v) {
+        return;
+      }
+      if (!map.has(k)) {
+        map.set(k, v);
+      }
+    };
+
+    const deriveDisplayName = (user) => {
+      if (!user || typeof user !== "object") {
+        return null;
+      }
+      return (
+        user.username ||
+        user.userName ||
+        user.displayName ||
+        user.name ||
+        user.email ||
+        user.identifier ||
+        user.id ||
+        null
+      );
+    };
+
+    const handleEntry = (key, entry) => {
+      if (!entry) {
+        return;
+      }
+      if (typeof entry === "string") {
+        addMapping(key, entry);
+        addMapping(entry, entry);
+        return;
+      }
+      if (typeof entry !== "object") {
+        return;
+      }
+      const displayName = deriveDisplayName(entry);
+      const identifiers = [
+        key,
+        entry.identifier,
+        entry.id,
+        entry.userIdentifier,
+        entry.username,
+        entry.userName
+      ];
+      identifiers.filter(Boolean).forEach((id) => addMapping(id, displayName || id));
+    };
+
+    const entries = payload && payload.data ? payload.data : payload;
+    if (Array.isArray(entries)) {
+      entries.forEach((entry) => handleEntry(entry && (entry.username || entry.id), entry));
+      return map;
+    }
+    if (entries && typeof entries === "object") {
+      Object.entries(entries).forEach(([key, entry]) => handleEntry(key, entry));
+    }
+    return map;
+  };
+
+  const getUserDirectory = (dataSource) => {
+    if (!dataSource) {
+      return Promise.resolve(new Map());
+    }
+    const cached = userDirectoryCache.get(dataSource);
+    if (cached) {
+      if (cached.promise) {
+        return cached.promise;
+      }
+      if (isUserDirectoryFresh(cached)) {
+        return Promise.resolve(cached.map || new Map());
+      }
+    }
+    const promise = requestUsersIndex(dataSource)
+      .then((payload) => {
+        const map = extractUserDirectory(payload);
+        userDirectoryCache.set(dataSource, {
+          map,
+          fetchedAt: Date.now(),
+          error: false
+        });
+        return map;
+      })
+      .catch(() => {
+        const map = new Map();
+        userDirectoryCache.set(dataSource, {
+          map,
+          fetchedAt: Date.now(),
+          error: true
+        });
+        return map;
+      });
+    userDirectoryCache.set(dataSource, {
+      promise,
+      fetchedAt: Date.now(),
+      error: false
+    });
+    return promise;
+  };
+
+  const resolveUserDisplayNames = (users, dataSource) => {
+    if (!Array.isArray(users) || users.length === 0) {
+      return Promise.resolve(users);
+    }
+    return getUserDirectory(dataSource)
+      .then((map) => {
+        if (!map || map.size === 0) {
+          return users;
+        }
+        const resolved = users.map((user) => map.get(user) || user);
+        return resolved;
+      })
+      .catch(() => users);
   };
 
   const fetchActiveConnectionsIndex = async (includeToken, dataSource) => {
@@ -670,12 +850,14 @@
         const key = String(connectionId);
         if (map && map.size) {
           const users = map.get(key) || [];
-          activeUserCache.set(connectionId, {
-            users,
-            fetchedAt: Date.now(),
-            error: false
+          return resolveUserDisplayNames(users, dataSource).then((resolved) => {
+            activeUserCache.set(connectionId, {
+              users: resolved,
+              fetchedAt: Date.now(),
+              error: false
+            });
+            return resolved;
           });
-          return users;
         }
         if (!error && map && map.size === 0) {
           activeUserCache.set(connectionId, {
@@ -688,12 +870,14 @@
         return requestActiveConnections(connectionId, dataSource)
           .then((payload) => {
             const users = extractActiveUsernames(payload);
-            activeUserCache.set(connectionId, {
-              users,
-              fetchedAt: Date.now(),
-              error: false
+            return resolveUserDisplayNames(users, dataSource).then((resolved) => {
+              activeUserCache.set(connectionId, {
+                users: resolved,
+                fetchedAt: Date.now(),
+                error: false
+              });
+              return resolved;
             });
-            return users;
           })
           .catch(() => {
             activeUserCache.set(connectionId, {
