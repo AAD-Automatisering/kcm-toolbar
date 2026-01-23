@@ -292,8 +292,8 @@
   min-width: 28px;
   min-height: 28px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 169, 77, 0.6);
-  background: rgba(255, 169, 77, 0.15);
+  border: 1px solid var(--msp-border);
+  background: transparent;
   color: #ffa94d;
   cursor: pointer;
   flex-shrink: 0;
@@ -314,7 +314,6 @@
 .msp-toolbar__result-watch:focus-visible {
   border-color: var(--msp-border-hover);
   background: rgba(120, 180, 255, 0.12);
-  color: var(--msp-border-hover);
 }
 
 .msp-toolbar__result-watch:focus-visible {
