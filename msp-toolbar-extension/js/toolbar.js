@@ -1014,7 +1014,11 @@
       watchButton.dataset.connectionId = match.id;
       watchButton.hidden = true;
       watchButton.setAttribute("aria-label", `Meekijken bij ${match.name}`);
-      watchButton.textContent = "Meekijken";
+      watchButton.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 5C7 5 2.73 8.11 1 12c1.73 3.89 5.999 7 11 7s9.27-3.11 11-7c-1.73-3.89-5.999-7-11-7Zm0 12c-3.03 0-5.5-2.47-5.5-5.5S8.97 6 12 6s5.5 2.47 5.5 5.5S15.03 17 12 17Zm0-9c-1.93 0-3.5 1.57-3.5 3.5S10.07 15 12 15s3.5-1.57 3.5-3.5S13.93 8 12 8Zm0 5.5c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2Z" fill="currentColor"/>
+        </svg>
+      `;
       watchButton.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -1052,16 +1056,16 @@
             return;
           }
           updateActiveUsersElement(users, info);
-          if (info.watch && info.watch.identifier) {
-            watchButton.hidden = false;
+          const hasSession = info.watch && info.watch.identifier;
+          watchButton.hidden = !hasSession;
+          if (hasSession) {
             watchButton.dataset.activeConnectionId = info.watch.identifier;
             watchButton.dataset.activeConnectionDataSource =
               info.dataSource || getDataSource();
             const label =
               info.watch.displayName || info.watch.username || `actieve sessie`;
-            watchButton.title = `Meekijken met ${label}`;
+            watchButton.setAttribute("title", `Meekijken met ${label}`);
           } else {
-            watchButton.hidden = true;
             watchButton.dataset.activeConnectionId = "";
             watchButton.dataset.activeConnectionDataSource = "";
             watchButton.removeAttribute("title");
