@@ -13,17 +13,6 @@ The toolbar is hidden on mobile devices and does not overlap the client viewport
 - Blocks keystrokes from being sent to the remote session while the search field is focused
 - No sensitive data stored in the extension
 
-## Installation
-
-1. Build the extension jar so Guacamole can load the JS and CSS assets.
-   ```sh
-   cd msp-toolbar-extension
-   mvn -q package
-   ```
-   *(Requires Maven 3.6+; the command failed earlier here because `mvn` is not installed in this environment.)*
-2. Copy `target/msp-toolbar-1.0.0.jar` into your Guacamole server’s `GUACAMOLE_HOME/extensions/` directory.
-3. Restart the Guacamole webapp/container so it reloads the new extension.
-
 ## Docker deployment
 
 1. Build the jar locally as above (`msp-toolbar-extension/target/msp-toolbar-1.0.0.jar`).
