@@ -15,17 +15,26 @@ The toolbar is hidden on mobile devices and does not overlap the client viewport
 
 ## Docker deployment
 
-1. Build the jar locally as above (`msp-toolbar-extension/target/msp-toolbar-1.0.0.jar`).
-2. Extend the official Guacamole image so the toolbar jar is added before the container starts:
-   ```Dockerfile
-   FROM guacamole/guacamole:1.5.5
-   COPY msp-toolbar-1.0.0.jar /extensions/
-   ```
-3. Rebuild your image (`docker build -t my-guacamole .`) and restart the container so the extension loads automatically with the rest of the service.
+Define a shared volume called `kcm_extensions` and publish the extension from there:
+
+```yaml
+volumes:
+  kcm_extensions:
+
+services:
+  guacamole:
+    image: guacamole/guacamole:1.5.5
+    volumes:
+      - kcm_extensions:/extensions
+```
+
+1. Build the jar locally (`msp-toolbar-extension/target/msp-toolbar-1.0.0.jar`).
+2. Copy the jar into the volume (for example, `docker run --rm -v kcm_extensions:/target -v "$(pwd)/msp-toolbar-extension/target":/source alpine sh -c "cp /source/msp-toolbar-1.0.0.jar /target/"`).
+3. Rebuild/restart the Guacamole container so it loads the toolbar bundle at `/extensions/msp-toolbar-1.0.0.jar`.
 
 ## CI / builder container
 
-If you prefer to build the extension from within a lightweight container, add a builder service to your `docker-compose.yml`, for example:
+If you prefer to build the extension from within a lightweight container, add a builder service that shares `kcm_extensions`, for example:
 
 ```yaml
 kcm_toolbar_builder:
@@ -33,7 +42,7 @@ kcm_toolbar_builder:
   container_name: kcm-toolbar-builder
   restart: "no"
   volumes:
-    - "/etc/kcm-setup:/out"
+    - "kcm_extensions:/out"
   command: >
     sh -c "
       set -e &&
@@ -49,7 +58,7 @@ kcm_toolbar_builder:
       ipv4_address: 172.18.0.10
 ```
 
-Mount the output directory as a shared volume (here `/etc/kcm-setup`) so the builder drops `msp-toolbar-extension.jar` where your Guacamole container or host can pick it up. This is handy for CI pipelines or automated deployments where Maven is not available.
+Mount `kcm_extensions` so the builder drops `msp-toolbar-extension.jar` directly into the volume that Guacamole already reads. This keeps the artifact within Docker’s volume namespace for CI/CD or installs without Maven.
 
 ## Development
 
