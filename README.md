@@ -13,6 +13,16 @@ The toolbar is hidden on mobile devices and does not overlap the client viewport
 - Blocks keystrokes from being sent to the remote session while the search field is focused
 - No sensitive data stored in the extension
 
+## Toolbar overview
+
+![Toolbar preview](docs/assets/toolbar-preview.png)
+
+De toolbar plaatst een vaste rij bovenaan Guacamole met:
+
+- links een snelkoppeling naar het dashboard en een menu-knop die het KCM/Guacamole menu opent zonder meta-toetsen te hoeven drukken (`js/toolbar.js:1486`).
+- een centraal zoekveld dat lokaal de connection tree doorzoekt, resultaten toont met groepspad en actieve gebruikers, plus meekijk-acties terwijl toetsen niet in de client belanden (`js/toolbar.js:1069`, `js/toolbar.js:1424`).
+- rechts instellingen- en uitlogopties plus een tabbar met open verbindingen, reconnect/close-acties en status-indicatoren zodat je eenvoudig tussen sessies switcht (`js/toolbar.js:1703`, `js/toolbar.js:1732`).
+
 ## Docker deployment
 
 Define a shared volume called `kcm_extensions` and publish the extension from there:
