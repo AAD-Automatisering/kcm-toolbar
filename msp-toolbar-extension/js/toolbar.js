@@ -1846,6 +1846,25 @@
     connectionIndexPromise = null;
   };
 
+  const invalidateActiveUserCaches = () => {
+    activeUserCache.clear();
+    activeConnectionsIndexCache.clear();
+    activeConnectionsIndexSelectionCache = null;
+  };
+
+  const refreshSearchResultsIfVisible = () => {
+    const input = getSearchInput();
+    const results = getResultsElement();
+    if (!input || !results || results.hidden) {
+      return;
+    }
+    const query = input.value.trim();
+    if (query.length < SEARCH_SUGGEST_MIN) {
+      return;
+    }
+    void updateResults();
+  };
+
   const refreshTabBar = () => {
     resetCaches();
     tabSnapshot = "";
@@ -1933,6 +1952,8 @@
     }
     tabSnapshot = snapshot;
     renderTabBar(tabs);
+    invalidateActiveUserCaches();
+    refreshSearchResultsIfVisible();
     updateToolbarHeight();
   };
 
