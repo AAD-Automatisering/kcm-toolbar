@@ -1870,12 +1870,6 @@
     void updateResults();
   };
 
-  const refreshTabBar = () => {
-    resetCaches();
-    tabSnapshot = "";
-    syncTabBar();
-  };
-
   const handleTabInteraction = (event) => {
     const tab = event.target.closest(".msp-toolbar__tab");
     if (!tab) {
