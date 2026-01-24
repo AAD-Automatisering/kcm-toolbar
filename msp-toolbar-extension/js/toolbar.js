@@ -175,24 +175,52 @@
     return path.replace(/\/$/, "");
   };
 
-  const buildApiUrl = () => {
+  const buildApiUrl = (options = {}) => {
+    const includeToken = options.includeToken !== false;
     const dataSource = getDataSource();
     const apiRoot = getApiRoot();
-    return `${apiRoot}/api/session/data/${encodeURIComponent(dataSource)}/connectionGroups/ROOT/tree`;
+    const basePath = `${apiRoot}/api/session/data/${encodeURIComponent(
+      dataSource
+    )}/connectionGroups/ROOT/tree`;
+    const token = getAuthToken();
+    if (!token || !includeToken) {
+      return basePath;
+    }
+    const url = new URL(basePath, window.location.origin);
+    url.searchParams.set("token", token);
+    return url.toString();
   };
 
   const buildActiveConnectionsUrl = (connectionId, options = {}) => {
+    const includeToken = options.includeToken !== false;
     const dataSource = options.dataSource || getDataSource();
     const apiRoot = getApiRoot();
-    return `${apiRoot}/api/session/data/${encodeURIComponent(
+    const basePath = `${apiRoot}/api/session/data/${encodeURIComponent(
       dataSource
     )}/connections/${encodeURIComponent(connectionId)}/activeConnections`;
+    const token = getAuthToken();
+    if (!token || !includeToken) {
+      return basePath;
+    }
+    const url = new URL(basePath, window.location.origin);
+    url.searchParams.set("token", token);
+    return url.toString();
   };
 
   const buildActiveConnectionsIndexUrl = (options = {}) => {
+    const includeToken = options.includeToken !== false;
     const dataSource = options.dataSource || getDataSource();
     const apiRoot = getApiRoot();
-    return `${apiRoot}/api/session/data/${encodeURIComponent(dataSource)}/activeConnections`;
+    const basePath = `${apiRoot}/api/session/data/${encodeURIComponent(
+      dataSource
+    )}/activeConnections`;
+    const token = getAuthToken();
+    if (!token || !includeToken) {
+      return basePath;
+    }
+    const url = new URL(basePath, window.location.origin);
+    url.searchParams.set("token", token);
+    return url.toString();
   };
 
   const normalizeToArray = (value) => {
@@ -253,10 +281,27 @@
     return results;
   };
 
-  const fetchConnectionTree = async () => fetchJsonWithSession(buildApiUrl());
+  const fetchConnectionTree = async (includeToken) => {
+    const url = buildApiUrl({ includeToken });
+    const response = await fetch(url, { credentials: "same-origin" });
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    return response.json();
+  };
 
   const requestConnectionTree = async () => {
-    return fetchConnectionTree();
+    const token = getAuthToken();
+    try {
+      return await fetchConnectionTree(false);
+    } catch (error) {
+      if (token && (error.status === 401 || error.status === 403)) {
+        return fetchConnectionTree(true);
+      }
+      throw error;
+    }
   };
 
   const ensureConnectionIndex = () => {
@@ -430,31 +475,9 @@
     });
   };
 
-  const fetchActiveConnections = async (connectionId, dataSource) =>
-    fetchJsonWithSession(buildActiveConnectionsUrl(connectionId, { dataSource }));
-
-  const buildUsersIndexUrl = (options = {}) => {
-    const dataSource = options.dataSource || getDataSource();
-    const apiRoot = getApiRoot();
-    return `${apiRoot}/api/session/data/${encodeURIComponent(dataSource)}/users`;
-  };
-
-  const fetchWithSession = (url, options = {}) =>
-    fetch(url, { credentials: "same-origin", ...options });
-
-  const fetchJsonWithSession = async (url, options = {}, allowTokenFallback = true) => {
-    let response = await fetchWithSession(url, options);
-    if (
-      allowTokenFallback &&
-      (response.status === 401 || response.status === 403)
-    ) {
-      const token = getAuthToken();
-      if (token) {
-        const headers = { ...(options.headers || {}) };
-        headers.Authorization = `Bearer ${token}`;
-        response = await fetchWithSession(url, { ...options, headers });
-      }
-    }
+  const fetchActiveConnections = async (connectionId, includeToken, dataSource) => {
+    const url = buildActiveConnectionsUrl(connectionId, { includeToken, dataSource });
+    const response = await fetch(url, { credentials: "same-origin" });
     if (!response.ok) {
       const error = new Error(`HTTP ${response.status}`);
       error.status = response.status;
@@ -463,10 +486,44 @@
     return response.json();
   };
 
-  const fetchUsersIndex = async (dataSource) =>
-    fetchJsonWithSession(buildUsersIndexUrl({ dataSource }));
+  const buildUsersIndexUrl = (options = {}) => {
+    const includeToken = options.includeToken !== false;
+    const dataSource = options.dataSource || getDataSource();
+    const apiRoot = getApiRoot();
+    const basePath = `${apiRoot}/api/session/data/${encodeURIComponent(dataSource)}/users`;
+    const token = getAuthToken();
+    if (!token || !includeToken) {
+      return basePath;
+    }
+    const url = new URL(basePath, window.location.origin);
+    url.searchParams.set("token", token);
+    return url.toString();
+  };
 
-  const requestUsersIndex = async (dataSource) => fetchUsersIndex(dataSource);
+  const fetchUsersIndex = async (includeToken, dataSource) => {
+    const url = buildUsersIndexUrl({ includeToken, dataSource });
+    const response = await fetch(url, { credentials: "same-origin" });
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    return response.json();
+  };
+
+  const requestUsersIndex = async (dataSource) => {
+    const token = getAuthToken();
+    if (token) {
+      try {
+        return await fetchUsersIndex(true, dataSource);
+      } catch (error) {
+        if (error.status !== 401 && error.status !== 403) {
+          throw error;
+        }
+      }
+    }
+    return fetchUsersIndex(false, dataSource);
+  };
 
   const isUserDirectoryFresh = (entry) => {
     if (!entry || typeof entry.fetchedAt !== "number") {
@@ -597,11 +654,30 @@
       .catch(() => users);
   };
 
-  const fetchActiveConnectionsIndex = async (dataSource) =>
-    fetchJsonWithSession(buildActiveConnectionsIndexUrl({ dataSource }));
+  const fetchActiveConnectionsIndex = async (includeToken, dataSource) => {
+    const url = buildActiveConnectionsIndexUrl({ includeToken, dataSource });
+    const response = await fetch(url, { credentials: "same-origin" });
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    return response.json();
+  };
 
-  const requestActiveConnections = async (connectionId, dataSource) =>
-    fetchActiveConnections(connectionId, dataSource);
+  const requestActiveConnections = async (connectionId, dataSource) => {
+    const token = getAuthToken();
+    if (token) {
+      try {
+        return await fetchActiveConnections(connectionId, true, dataSource);
+      } catch (error) {
+        if (error.status !== 401 && error.status !== 403) {
+          throw error;
+        }
+      }
+    }
+    return fetchActiveConnections(connectionId, false, dataSource);
+  };
 
   const requestActiveConnectionsAcrossDataSources = async (connectionId, preferredDataSource) => {
     const candidates = getCandidateDataSources();
@@ -633,8 +709,19 @@
     throw new Error("Kon actieve verbindingen niet laden.");
   };
 
-  const requestActiveConnectionsIndex = async (dataSource) =>
-    fetchActiveConnectionsIndex(dataSource);
+  const requestActiveConnectionsIndex = async (dataSource) => {
+    const token = getAuthToken();
+    if (token) {
+      try {
+        return await fetchActiveConnectionsIndex(true, dataSource);
+      } catch (error) {
+        if (error.status !== 401 && error.status !== 403) {
+          throw error;
+        }
+      }
+    }
+    return fetchActiveConnectionsIndex(false, dataSource);
+  };
 
   const activeConnectionsIndexCache = new Map();
   let activeConnectionsIndexSelectionCache = null;
