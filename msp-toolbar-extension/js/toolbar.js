@@ -1097,9 +1097,12 @@
       watchButton.hidden = true;
       watchButton.setAttribute("aria-label", `Meekijken bij ${match.name}`);
       watchButton.innerHTML = WATCH_ICON_SVG;
-      watchButton.addEventListener("click", (event) => {
+      const handleWatchInteraction = (event) => {
         event.preventDefault();
         event.stopPropagation();
+        if (event.type === "auxclick" && event.button !== 1) {
+          return;
+        }
         const activeConnectionId = watchButton.dataset.activeConnectionId;
         if (!activeConnectionId) {
           return;
@@ -1109,7 +1112,9 @@
           openInNewTab: shouldOpenInNewTab(event),
           dataSource
         });
-      });
+      };
+      watchButton.addEventListener("click", handleWatchInteraction);
+      watchButton.addEventListener("auxclick", handleWatchInteraction);
 
       const openButton = document.createElement("button");
       openButton.type = "button";
@@ -2107,6 +2112,9 @@
     const results = document.getElementById(RESULTS_ID);
     if (results) {
       const handleResultClick = (event) => {
+        if (event.target.closest(".msp-toolbar__result-watch")) {
+          return;
+        }
         const target = event.target.closest("[data-connection-id]");
         if (!target) {
           return;
