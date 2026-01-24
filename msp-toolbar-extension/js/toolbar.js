@@ -397,11 +397,21 @@
     if (entry) {
       const key = entry.connectionIdentifier;
       const existing = map.get(key) || [];
-      existing.push(entry);
-      map.set(key, existing);
+      const alreadyAdded = existing.some(
+        (existingEntry) =>
+          existingEntry.identifier === entry.identifier &&
+          existingEntry.dataSource === entry.dataSource
+      );
+      if (!alreadyAdded) {
+        existing.push(entry);
+        map.set(key, existing);
+      }
       return map;
     }
     Object.entries(value).forEach(([key, nested]) => {
+      if (key === "data" || key === "activeConnections") {
+        return;
+      }
       collectActiveConnectionEntries(nested, map, key, dataSource);
     });
     return map;
