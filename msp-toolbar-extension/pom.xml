@@ -23,6 +23,7 @@
           <include>guac-manifest.json</include>
           <include>css/**</include>
           <include>js/**</include>
+          <include>assets/**</include>
         </includes>
       </resource>
     </resources>

@@ -16,6 +16,7 @@
   const ACTIVE_USER_CACHE_TTL = 15000;
   const ACTIVE_USER_ERROR_TTL = 20000;
   const USER_DIRECTORY_TTL = 60000;
+  const FAVICON_RELATIVE_PATH = "../assets/favicon.png";
   const WATCH_ICON_SVG = `
     <svg class="msp-toolbar__result-open-icon" width="24" height="24" fill="none" viewBox="0 0 24 24"
       xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
@@ -87,6 +88,42 @@
     } catch (error) {
       return null;
     }
+  };
+
+  const getToolbarFaviconUrl = () => {
+    const toolbarScript = Array.from(document.scripts).find(
+      (script) => script.src && script.src.includes("/js/toolbar.js")
+    );
+    if (!toolbarScript) {
+      return null;
+    }
+    try {
+      return new URL(FAVICON_RELATIVE_PATH, toolbarScript.src).toString();
+    } catch (error) {
+      const fallbackBase = toolbarScript.src.replace(/\/js\/toolbar\.js(?:\?.*)?$/, "");
+      return fallbackBase ? `${fallbackBase}/assets/favicon.png` : null;
+    }
+  };
+
+  const applyFavicon = () => {
+    const faviconUrl = getToolbarFaviconUrl();
+    if (!faviconUrl) {
+      return;
+    }
+    const head = document.head || document.querySelector("head");
+    if (!head) {
+      return;
+    }
+    ["icon", "shortcut icon"].forEach((rel) => {
+      let link = head.querySelector(`link[rel="${rel}"]`);
+      if (!link) {
+        link = document.createElement("link");
+        link.rel = rel;
+        head.appendChild(link);
+      }
+      link.type = "image/png";
+      link.href = faviconUrl;
+    });
   };
 
   const normalizeToken = (value) => {
@@ -2055,6 +2092,7 @@
     if (!document.getElementById(TOOLBAR_ID)) {
       buildToolbar();
     }
+    applyFavicon();
     const homeButton = document.getElementById(HOME_BUTTON_ID);
     if (homeButton) {
       homeButton.addEventListener("click", goHome);
