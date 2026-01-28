@@ -1,0 +1,43 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/*
+ * Set up the logo used at the top of the login dialog box, including sizing it
+ * appropriately and pulling in the custom image.
+ */
+.login-ui .login-dialog .logo {
+    width: 5em;
+    height: 3em;
+    background-size:         5em 3em;
+    -moz-background-size:    5em 3em;
+    -webkit-background-size: 5em 3em;
+    -khtml-background-size:  5em 3em;
+    background-image: url('app/ext/kcm-branding-example/resources/images/logo.png');
+}
+
+/*
+ * Replace the logo on the upper left
+ */
+.logo {
+    width: 145px;
+    height: 34px;
+    background: #262626 url(app/ext/kcm-branding-example/resources/images/logo.png) no-repeat left/142px;
+    font-size: 0;
+    line-height: 0;
+}

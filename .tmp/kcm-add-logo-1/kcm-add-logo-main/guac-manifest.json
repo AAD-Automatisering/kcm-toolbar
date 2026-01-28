@@ -1,7 +1,7 @@
 {
     "guacamoleVersion" : "*",
-    "name"             : "KCM Branding",
-    "namespace"        : "kcm-branding",
+    "name"             : "Add Logo and Page Title",
+    "namespace"        : "kcm-branding-example",
     "css" : [
         "css/example.css"
     ],
