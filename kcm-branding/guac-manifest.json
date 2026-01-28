@@ -1,0 +1,6 @@
+{
+  "guacamoleVersion": "1.5.5",
+  "name": "KCM Branding",
+  "namespace": "kcm-branding",
+  "js": [ "js/branding.js" ]
+}
