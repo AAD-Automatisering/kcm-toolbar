@@ -17,6 +17,7 @@
   const ACTIVE_USER_ERROR_TTL = 20000;
   const USER_DIRECTORY_TTL = 60000;
   const FAVICON_RELATIVE_PATH = "../assets/favicon.png";
+  const FAVICON_CACHE_BUSTER = "20250128";
   const WATCH_ICON_SVG = `
     <svg class="msp-toolbar__result-open-icon" width="24" height="24" fill="none" viewBox="0 0 24 24"
       xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
@@ -98,10 +99,12 @@
       return null;
     }
     try {
-      return new URL(FAVICON_RELATIVE_PATH, toolbarScript.src).toString();
+      const url = new URL(FAVICON_RELATIVE_PATH, toolbarScript.src);
+      url.searchParams.set("v", FAVICON_CACHE_BUSTER);
+      return url.toString();
     } catch (error) {
       const fallbackBase = toolbarScript.src.replace(/\/js\/toolbar\.js(?:\?.*)?$/, "");
-      return fallbackBase ? `${fallbackBase}/assets/favicon.png` : null;
+      return fallbackBase ? `${fallbackBase}/assets/favicon.png?v=${FAVICON_CACHE_BUSTER}` : null;
     }
   };
 
