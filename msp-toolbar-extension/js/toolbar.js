@@ -12,6 +12,8 @@
   const MOBILE_MEDIA_QUERY = "(max-width: 900px), (hover: none) and (pointer: coarse)";
   const SEARCH_SUGGEST_MIN = 2;
   const MAX_RESULTS = 8;
+  const EXPANDED_MAX_RESULTS = 25;
+  const EXPANDED_RESULTS_MIN_QUERY_LENGTH = 3;
   const TAB_SYNC_INTERVAL = 1000;
   const ACTIVE_USER_CACHE_TTL = 15000;
   const ACTIVE_USER_ERROR_TTL = 20000;
@@ -1006,6 +1008,9 @@
       });
   };
 
+  const getMaxResults = (query) =>
+    query.length >= EXPANDED_RESULTS_MIN_QUERY_LENGTH ? EXPANDED_MAX_RESULTS : MAX_RESULTS;
+
   const getResultsElement = () => document.getElementById(RESULTS_ID);
 
   const getSearchInput = () => document.getElementById(SEARCH_INPUT_ID);
@@ -1348,7 +1353,7 @@
     if (requestId !== searchRequestId) {
       return;
     }
-    const matches = findMatches(query).slice(0, MAX_RESULTS);
+    const matches = findMatches(query).slice(0, getMaxResults(query));
     if (!matches.length) {
       showResultsMessage("Geen resultaten.");
       return;
@@ -1376,7 +1381,7 @@
       showResultsMessage("Kon verbindingen niet laden.");
       return;
     }
-    const matches = findMatches(query).slice(0, MAX_RESULTS);
+    const matches = findMatches(query).slice(0, getMaxResults(query));
     if (!matches.length) {
       showResultsMessage("Geen resultaten.");
       return;

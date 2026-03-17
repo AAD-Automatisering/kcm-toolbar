@@ -180,6 +180,9 @@
   top: calc(100% + 4px);
   left: 0;
   width: 100%;
+  max-height: min(420px, calc(100vh - 96px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--msp-bg);
   border: 1px solid var(--msp-border);
   border-radius: 8px;
