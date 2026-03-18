@@ -183,6 +183,7 @@
   max-height: min(520px, calc(100vh - 96px));
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: #ffffff transparent;
   background: var(--msp-bg);
