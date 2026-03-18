@@ -180,18 +180,21 @@
   top: calc(100% + 4px);
   left: 0;
   width: 100%;
-  max-height: min(520px, calc(100vh - 96px));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: #ffffff transparent;
   background: var(--msp-bg);
   border: 1px solid var(--msp-border);
   border-radius: 8px;
   box-shadow: var(--msp-shadow);
   padding: 4px;
   z-index: 1;
+}
+
+.msp-toolbar__results.msp-toolbar__results--fixed-height {
+  height: min(520px, calc(100vh - 96px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
+  scrollbar-color: #ffffff transparent;
 }
 
 .msp-toolbar__results::-webkit-scrollbar {

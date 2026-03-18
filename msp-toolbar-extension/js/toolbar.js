@@ -6,6 +6,7 @@
   const LOGOUT_BUTTON_ID = "msp-toolbar-logout";
   const SEARCH_INPUT_ID = "msp-toolbar-search";
   const RESULTS_ID = "msp-toolbar-results";
+  const RESULTS_FIXED_HEIGHT_CLASS = "msp-toolbar__results--fixed-height";
   const BODY_ACTIVE_CLASS = "msp-toolbar-active";
   const TAB_BAR_ID = "msp-toolbar-tabs";
   const TAB_LIST_CLASS = "msp-toolbar__tabs-inline";
@@ -1054,6 +1055,7 @@
     if (!results) {
       return;
     }
+    results.classList.remove(RESULTS_FIXED_HEIGHT_CLASS);
     results.innerHTML = "";
     const messageEl = document.createElement("div");
     messageEl.className = "msp-toolbar__results-empty";
@@ -1067,6 +1069,7 @@
     if (!results) {
       return;
     }
+    results.classList.remove(RESULTS_FIXED_HEIGHT_CLASS);
     results.innerHTML = "";
     results.hidden = true;
   };
@@ -1076,6 +1079,7 @@
     if (!results) {
       return;
     }
+    results.classList.add(RESULTS_FIXED_HEIGHT_CLASS);
     results.innerHTML = "";
     matches.forEach((match) => {
       const item = document.createElement("div");
