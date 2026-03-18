@@ -180,15 +180,32 @@
   top: calc(100% + 4px);
   left: 0;
   width: 100%;
-  max-height: min(420px, calc(100vh - 96px));
+  max-height: min(520px, calc(100vh - 96px));
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #ffffff #000000;
   background: var(--msp-bg);
   border: 1px solid var(--msp-border);
   border-radius: 8px;
   box-shadow: var(--msp-shadow);
   padding: 4px;
   z-index: 1;
+}
+
+.msp-toolbar__results::-webkit-scrollbar {
+  width: 10px;
+}
+
+.msp-toolbar__results::-webkit-scrollbar-track {
+  background: #000000;
+  border-radius: 8px;
+}
+
+.msp-toolbar__results::-webkit-scrollbar-thumb {
+  background: #ffffff;
+  border: 2px solid #000000;
+  border-radius: 8px;
 }
 
 .msp-toolbar__results[hidden] {
