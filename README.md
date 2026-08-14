@@ -1,27 +1,35 @@
 # KCM Toolbar Extension
 
-A lightweight Keeper Connection Manager (KCM) / Guacamole extension that adds a fixed top toolbar with:
-- Home button (dashboard)
-- Menu button (opens the KCM/Guacamole menu shortcut)
-- Search field with connection results
+A lightweight Keeper Connection Manager (KCM) / Apache Guacamole extension that adds a fixed top toolbar with:
 
-The toolbar is hidden on mobile devices and does not overlap the client viewport; it reduces the available height by a fixed 48px.
+- a Home button for the dashboard;
+- a Menu button for the KCM/Guacamole menu; and
+- a search field with connection results.
+
+The toolbar is hidden on mobile devices and does not overlap the client viewport. It reduces the available height by a fixed 48 pixels.
 
 ## Features
-- Fast local search over the connection tree
-- Navigates to the correct client URL using the Guacamole `ClientIdentifier`
-- Blocks keystrokes from being sent to the remote session while the search field is focused
-- No sensitive data stored in the extension
+
+- Fast local search across the connection tree.
+- Navigation to the correct client URL using the Guacamole `ClientIdentifier`.
+- Keyboard isolation while the search field is focused, preventing search input from being sent to the remote session.
+- No credentials, connection content, or other sensitive data are stored by the extension.
+
+## Security and privacy
+
+This repository is intended to contain source code and generic deployment documentation only. Do not commit credentials, access tokens, private keys, customer data, connection details, screenshots containing personal information, or local machine paths. Use placeholders in examples and review the complete diff before publishing changes.
+
+The extension uses the authenticated KCM/Guacamole session to retrieve the data required for its interface. It does not add a separate credential store.
 
 ## Toolbar overview
 
 ![Toolbar preview](docs/assets/toolbar-preview.png)
 
-De toolbar plaatst een vaste rij bovenaan Guacamole met:
+The toolbar provides:
 
-- links een snelkoppeling naar het dashboard en een menu-knop die het KCM/Guacamole menu opent zonder meta-toetsen te hoeven drukken (`js/toolbar.js:1486`).
-- een centraal zoekveld dat lokaal de connection tree doorzoekt, resultaten toont met groepspad en actieve gebruikers, plus meekijk-acties terwijl toetsen niet in de client belanden (`js/toolbar.js:1069`, `js/toolbar.js:1424`).
-- rechts instellingen- en uitlogopties plus een tabbar met open verbindingen, reconnect/close-acties en status-indicatoren zodat je eenvoudig tussen sessies switcht (`js/toolbar.js:1703`, `js/toolbar.js:1732`).
+- dashboard and menu shortcuts on the left;
+- a central search field that searches the connection tree locally and can display group paths, active users, and session actions; and
+- settings, sign-out, open-session tabs, reconnect/close actions, and status indicators on the right.
 
 ## Docker deployment
 
@@ -38,9 +46,9 @@ services:
       - kcm_extensions:/extensions
 ```
 
-1. Build the jar locally (`msp-toolbar-extension/target/msp-toolbar-1.0.0.jar`).
-2. Copy the jar into the volume (for example, `docker run --rm -v kcm_extensions:/target -v "$(pwd)/msp-toolbar-extension/target":/source alpine sh -c "cp /source/msp-toolbar-1.0.0.jar /target/"`).
-3. Rebuild/restart the Guacamole container so it loads the toolbar bundle at `/extensions/msp-toolbar-1.0.0.jar`.
+1. Build the JAR locally (`msp-toolbar-extension/target/msp-toolbar-1.0.0.jar`).
+2. Copy the JAR into the volume (for example, `docker run --rm -v kcm_extensions:/target -v "$(pwd)/msp-toolbar-extension/target":/source alpine sh -c "cp /source/msp-toolbar-1.0.0.jar /target/"`).
+3. Rebuild or restart the Guacamole container so it loads the toolbar bundle at `/extensions/msp-toolbar-1.0.0.jar`.
 
 ## CI / builder container
 
@@ -68,9 +76,9 @@ kcm_toolbar_builder:
       ipv4_address: 172.18.0.10
 ```
 
-Mount `kcm_extensions` so the builder drops `msp-toolbar-extension.jar` directly into the volume that Guacamole already reads. This keeps the artifact within Docker’s volume namespace for CI/CD or installs without Maven.
+Mount `kcm_extensions` so the builder drops `msp-toolbar-extension.jar` directly into the volume that Guacamole already reads. This keeps the artifact within Docker's volume namespace for CI/CD or installations without Maven.
 
 ## Development
 
-- Run `mvn -q package` whenever you change `js/toolbar.js`, `css/toolbar.css`, or `guac-manifest.json` so the extension jar bundles the latest frontend assets.
-- The resulting `target/msp-toolbar-1.0.0.jar` already contains `js/toolbar.js`, `css/toolbar.css`, and `guac-manifest.json`.
+- Run `mvn -q package` whenever you change `js/toolbar.js`, `css/toolbar.css`, or `guac-manifest.json` so the extension JAR bundles the latest frontend assets.
+- The resulting `target/msp-toolbar-1.0.0.jar` contains `js/toolbar.js`, `css/toolbar.css`, and `guac-manifest.json`.
