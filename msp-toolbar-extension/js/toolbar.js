@@ -11,6 +11,7 @@
   const TAB_BAR_ID = "msp-toolbar-tabs";
   const TAB_LIST_CLASS = "msp-toolbar__tabs-inline";
   const MOBILE_MEDIA_QUERY = "(max-width: 900px), (hover: none) and (pointer: coarse)";
+  const toolbarMedia = window.matchMedia?.(MOBILE_MEDIA_QUERY);
   const SEARCH_SUGGEST_MIN = 2;
   const MAX_RESULTS = 8;
   const EXPANDED_MAX_RESULTS = 25;
@@ -35,9 +36,10 @@
 
   let connectionIndex = null;
   let connectionIndexPromise = null;
+  let sessionToken;
   let searchRequestId = 0;
   let tabSyncIntervalId = null;
-  let tabSnapshot = "";
+  let tabSnapshot = "[]";
   let tabOrder = [];
   const activeUserCache = new Map();
   const userDirectoryCache = new Map();
@@ -180,7 +182,7 @@
 
   const buildApiUrl = (options = {}) => {
     const includeToken = options.includeToken !== false;
-    const dataSource = getDataSource();
+    const dataSource = options.dataSource || getDataSource();
     const apiRoot = getApiRoot();
     const basePath = `${apiRoot}/api/session/data/${encodeURIComponent(
       dataSource
@@ -247,7 +249,7 @@
         connection.uuid)) ||
     null;
 
-  const buildConnectionIndex = (node, parents = []) => {
+  const buildConnectionIndex = (node, dataSource, parents = []) => {
     const results = [];
     if (!node || typeof node !== "object") {
       return results;
@@ -268,6 +270,7 @@
       const path = groupPath ? `${groupPath} / ${name}` : name;
       results.push({
         id: String(id),
+        dataSource,
         name,
         groupPath,
         path,
@@ -278,14 +281,14 @@
 
     const childGroups = normalizeToArray(node.childConnectionGroups);
     childGroups.forEach((group) => {
-      results.push(...buildConnectionIndex(group, nextParents));
+      results.push(...buildConnectionIndex(group, dataSource, nextParents));
     });
 
     return results;
   };
 
-  const fetchConnectionTree = async (includeToken) => {
-    const url = buildApiUrl({ includeToken });
+  const fetchConnectionTree = async (includeToken, dataSource) => {
+    const url = buildApiUrl({ includeToken, dataSource });
     const response = await fetch(url, { credentials: "same-origin" });
     if (!response.ok) {
       const error = new Error(`HTTP ${response.status}`);
@@ -295,33 +298,41 @@
     return response.json();
   };
 
-  const requestConnectionTree = async () => {
+  const requestConnectionTree = async (dataSource) => {
     const token = getAuthToken();
     try {
-      return await fetchConnectionTree(false);
+      return await fetchConnectionTree(false, dataSource);
     } catch (error) {
       if (token && (error.status === 401 || error.status === 403)) {
-        return fetchConnectionTree(true);
+        return fetchConnectionTree(true, dataSource);
       }
       throw error;
     }
   };
 
   const ensureConnectionIndex = () => {
+    syncSession();
     if (connectionIndexPromise) {
       return connectionIndexPromise;
     }
-    connectionIndexPromise = requestConnectionTree()
+    const dataSource = getDataSource();
+    const promise = requestConnectionTree(dataSource)
       .then((tree) => {
         const treeRoot = tree && tree.data ? tree.data : tree;
-        connectionIndex = buildConnectionIndex(treeRoot);
-        return connectionIndex;
+        const index = buildConnectionIndex(treeRoot, dataSource);
+        if (connectionIndexPromise === promise) {
+          connectionIndex = index;
+        }
+        return index;
       })
       .catch((error) => {
-        connectionIndexPromise = null;
+        if (connectionIndexPromise === promise) {
+          connectionIndexPromise = null;
+        }
         throw error;
       });
-    return connectionIndexPromise;
+    connectionIndexPromise = promise;
+    return promise;
   };
 
   const isActiveUserCacheFresh = (entry) => {
@@ -331,8 +342,6 @@
     const ttl = entry.error ? ACTIVE_USER_ERROR_TTL : ACTIVE_USER_CACHE_TTL;
     return Date.now() - entry.fetchedAt < ttl;
   };
-
-  const isActiveConnectionsIndexFresh = (entry) => isActiveUserCacheFresh(entry);
 
   const getConnectionIdFromActiveEntry = (entry) => {
     if (!entry || typeof entry !== "object") {
@@ -456,25 +465,16 @@
     return unique;
   };
 
-  const finalizeActiveConnectionInfo = (connectionId, entries, dataSource, error) => {
+  const resolveActiveConnectionInfo = (entries, dataSource, error) => {
     return resolveActiveConnectionEntries(entries, dataSource).then((resolvedEntries) => {
       const names = resolvedEntries.map((entry) => entry.displayName).filter(Boolean);
       const watch =
         resolvedEntries.find((entry) => entry.connectable && entry.identifier) || null;
-      const usedDataSource = (watch && watch.dataSource) || dataSource;
-      const info = {
-        entries: resolvedEntries,
+      return {
         users: dedupeUsers(names),
         watch,
-        dataSource: usedDataSource,
         error: !!error
       };
-      activeUserCache.set(connectionId, {
-        ...info,
-        fetchedAt: Date.now(),
-        promise: null
-      });
-      return info;
     });
   };
 
@@ -616,29 +616,15 @@
       }
     }
     const promise = requestUsersIndex(dataSource)
-      .then((payload) => {
-        const map = extractUserDirectory(payload);
-        userDirectoryCache.set(dataSource, {
-          map,
-          fetchedAt: Date.now(),
-          error: false
-        });
-        return map;
-      })
-      .catch(() => {
-        const map = new Map();
-        userDirectoryCache.set(dataSource, {
-          map,
-          fetchedAt: Date.now(),
-          error: true
-        });
+      .then(extractUserDirectory)
+      .catch(() => new Map())
+      .then((map) => {
+        if (userDirectoryCache.get(dataSource)?.promise === promise) {
+          userDirectoryCache.set(dataSource, { map, fetchedAt: Date.now() });
+        }
         return map;
       });
-    userDirectoryCache.set(dataSource, {
-      promise,
-      fetchedAt: Date.now(),
-      error: false
-    });
+    userDirectoryCache.set(dataSource, { promise });
     return promise;
   };
 
@@ -682,36 +668,6 @@
     return fetchActiveConnections(connectionId, false, dataSource);
   };
 
-  const requestActiveConnectionsAcrossDataSources = async (connectionId, preferredDataSource) => {
-    const candidates = getCandidateDataSources();
-    const ordered = [];
-    if (preferredDataSource) {
-      ordered.push(preferredDataSource);
-    }
-    candidates.forEach((ds) => {
-      if (!ordered.includes(ds)) {
-        ordered.push(ds);
-      }
-    });
-    let lastError = null;
-    for (const dataSource of ordered) {
-      try {
-        const payload = await requestActiveConnections(connectionId, dataSource);
-        return { payload, dataSource };
-      } catch (error) {
-        lastError = error;
-        if (error.status === 401 || error.status === 403 || error.status === 404) {
-          continue;
-        }
-        throw error;
-      }
-    }
-    if (lastError) {
-      throw lastError;
-    }
-    throw new Error("Kon actieve verbindingen niet laden.");
-  };
-
   const requestActiveConnectionsIndex = async (dataSource) => {
     const token = getAuthToken();
     if (token) {
@@ -727,213 +683,68 @@
   };
 
   const activeConnectionsIndexCache = new Map();
-  let activeConnectionsIndexSelectionCache = null;
-
-  const getCandidateDataSources = () => {
-    const candidates = new Set();
-    const primary = getDataSource();
-    if (primary) {
-      candidates.add(primary);
-    }
-    candidates.add("postgresql");
-    candidates.add("postgresql-shared");
-    return Array.from(candidates);
-  };
-
-  const getConnectionIdSet = () => {
-    if (!Array.isArray(connectionIndex) || connectionIndex.length === 0) {
-      return new Set();
-    }
-    return new Set(connectionIndex.map((connection) => String(connection.id)));
-  };
-
-  const countMatches = (map, idSet) => {
-    if (!map || !map.size || !idSet || idSet.size === 0) {
-      return 0;
-    }
-    let matches = 0;
-    map.forEach((_, key) => {
-      if (idSet.has(String(key))) {
-        matches += 1;
-      }
-    });
-    return matches;
-  };
 
   const getActiveConnectionsIndexForDataSource = (dataSource) => {
-    if (!dataSource) {
-      return Promise.resolve({ map: new Map(), error: true, dataSource: null });
-    }
     const cached = activeConnectionsIndexCache.get(dataSource);
-    if (cached) {
-      if (cached.promise) {
-        return cached.promise;
-      }
-      if (isActiveConnectionsIndexFresh(cached)) {
-        return Promise.resolve({
-          map: cached.map || new Map(),
-          error: !!cached.error,
-          dataSource
-        });
-      }
+    if (cached?.promise) {
+      return cached.promise;
+    }
+    if (isActiveUserCacheFresh(cached)) {
+      return Promise.resolve(cached);
     }
     const promise = requestActiveConnectionsIndex(dataSource)
-      .then((payload) => {
-        const map = extractActiveConnectionsByConnection(payload, dataSource);
-        activeConnectionsIndexCache.set(dataSource, {
-          map,
-          fetchedAt: Date.now(),
-          error: false
-        });
-        return { map, error: false, dataSource };
-      })
-      .catch(() => {
-        const map = new Map();
-        activeConnectionsIndexCache.set(dataSource, {
-          map,
-          fetchedAt: Date.now(),
-          error: true
-        });
-        return { map, error: true, dataSource };
-      });
-    activeConnectionsIndexCache.set(dataSource, {
-      promise,
-      fetchedAt: Date.now(),
-      error: false
-    });
-    return promise;
-  };
-
-  const selectActiveConnectionsIndex = async () => {
-    const candidates = getCandidateDataSources();
-    if (!candidates.length) {
-      return { map: new Map(), error: true, dataSource: null };
-    }
-    const idSet = getConnectionIdSet();
-    const results = await Promise.all(
-      candidates.map((dataSource) => getActiveConnectionsIndexForDataSource(dataSource))
-    );
-    let best = null;
-    let bestScore = -1;
-    const aggregatedMap = new Map();
-    results.forEach((result) => {
-      if (!result || !result.map) {
-        return;
-      }
-      result.map.forEach((entries, key) => {
-        const existing = aggregatedMap.get(key) || [];
-        aggregatedMap.set(key, existing.concat(entries));
-      });
-    });
-    results.forEach((result) => {
-      if (!result || result.error) {
-        return;
-      }
-      const score = idSet.size ? countMatches(result.map, idSet) : result.map.size;
-      if (score > bestScore) {
-        bestScore = score;
-        best = result;
-      }
-    });
-    const preferred = best || { dataSource: candidates[0] };
-    const aggregatedError = results.every((result) => !result || result.error);
-    return {
-      map: aggregatedMap,
-      error: aggregatedError,
-      dataSource: preferred.dataSource || candidates[0]
-    };
-  };
-
-  const getActiveConnectionsIndex = () => {
-    if (activeConnectionsIndexSelectionCache) {
-      if (activeConnectionsIndexSelectionCache.promise) {
-        return activeConnectionsIndexSelectionCache.promise;
-      }
-      if (isActiveConnectionsIndexFresh(activeConnectionsIndexSelectionCache)) {
-        return Promise.resolve({
-          map: activeConnectionsIndexSelectionCache.map || new Map(),
-          error: !!activeConnectionsIndexSelectionCache.error,
-          dataSource: activeConnectionsIndexSelectionCache.dataSource || getDataSource()
-        });
-      }
-    }
-    const promise = selectActiveConnectionsIndex()
-      .then((result) => {
-        activeConnectionsIndexSelectionCache = {
-          map: result.map || new Map(),
-          fetchedAt: Date.now(),
-          error: !!result.error,
-          dataSource: result.dataSource || getDataSource()
-        };
-        return {
-          map: result.map || new Map(),
-          error: !!result.error,
-          dataSource: result.dataSource || getDataSource()
-        };
-      })
-      .catch(() => {
-        const map = new Map();
-        activeConnectionsIndexSelectionCache = {
-          map,
-          fetchedAt: Date.now(),
-          error: true,
-          dataSource: getDataSource()
-        };
-        return { map, error: true, dataSource: getDataSource() };
-      });
-    activeConnectionsIndexSelectionCache = {
-      promise,
-      fetchedAt: Date.now(),
-      error: false,
-      dataSource: getDataSource()
-    };
-    return promise;
-  };
-
-  const fetchActiveUsersForConnection = (connectionId) => {
-    if (!connectionId) {
-      return Promise.resolve({
-        entries: [],
-        users: [],
-        watch: null,
-        dataSource: getDataSource(),
+      .then((payload) => ({
+        map: extractActiveConnectionsByConnection(payload, dataSource),
         error: false
+      }))
+      .catch(() => ({ map: new Map(), error: true }))
+      .then((result) => {
+        if (activeConnectionsIndexCache.get(dataSource)?.promise === promise) {
+          activeConnectionsIndexCache.set(dataSource, { ...result, fetchedAt: Date.now() });
+        }
+        return result;
       });
+    activeConnectionsIndexCache.set(dataSource, { promise });
+    return promise;
+  };
+
+  const fetchActiveUsersForConnection = (connectionId, dataSource) => {
+    const key = JSON.stringify([dataSource, connectionId]);
+    const cached = activeUserCache.get(key);
+    if (cached?.promise) {
+      return cached.promise;
     }
-    const cached = activeUserCache.get(connectionId);
-    if (cached) {
-      if (cached.promise) {
-        return cached.promise;
-      }
-      if (isActiveUserCacheFresh(cached)) {
-        return Promise.resolve(cached);
-      }
+    if (isActiveUserCacheFresh(cached)) {
+      return Promise.resolve(cached);
     }
-    const promise = getActiveConnectionsIndex()
-      .then(({ map, error, dataSource }) => {
-        const key = String(connectionId);
-        const entries = (map && map.get(key)) || [];
-        if (entries.length) {
-          return finalizeActiveConnectionInfo(connectionId, entries, dataSource, false);
+    const isCurrent = () => activeUserCache.get(key)?.promise === promise;
+    const promise = getActiveConnectionsIndexForDataSource(dataSource)
+      .then(async ({ map, error }) => {
+        if (!isCurrent()) {
+          return null;
         }
-        if (!error && map && map.size === 0) {
-          return finalizeActiveConnectionInfo(connectionId, [], dataSource, false);
+        const entries = map.get(connectionId);
+        if (entries || (!error && map.size === 0)) {
+          return entries || [];
         }
-        return requestActiveConnectionsAcrossDataSources(connectionId, dataSource)
-          .then(({ payload, dataSource: fallbackDataSource }) => {
-            const fallbackMap = extractActiveConnectionsByConnection(payload, fallbackDataSource);
-            const fallbackEntries = fallbackMap.get(key) || [];
-            return finalizeActiveConnectionInfo(
-              connectionId,
-              fallbackEntries,
-              fallbackDataSource,
-              false
-            );
-          })
-          .catch(() => finalizeActiveConnectionInfo(connectionId, [], dataSource || getDataSource(), true));
+        const payload = await requestActiveConnections(connectionId, dataSource);
+        return extractActiveConnectionsByConnection(payload, dataSource).get(connectionId) || [];
       })
-      .catch(() => finalizeActiveConnectionInfo(connectionId, [], getDataSource(), true));
-    activeUserCache.set(connectionId, { promise, fetchedAt: Date.now(), error: false });
+      .then((entries) => {
+        if (isCurrent()) {
+          return resolveActiveConnectionInfo(entries, dataSource, false);
+        }
+        return null;
+      })
+      .catch(() => resolveActiveConnectionInfo([], dataSource, true))
+      .then((info) => {
+        if (!isCurrent()) {
+          return null;
+        }
+        activeUserCache.set(key, { ...info, fetchedAt: Date.now() });
+        return info;
+      });
+    activeUserCache.set(key, { promise });
     return promise;
   };
 
@@ -959,21 +770,12 @@
       element.hidden = true;
       element.classList.remove("is-active");
       element.removeAttribute("title");
-      element.dataset.activeConnectionId = "";
-      element.dataset.activeConnectionDataSource = "";
       return;
     }
     element.textContent = `In gebruik door: ${formatActiveUserList(users)}`;
     element.title = users.join(", ");
     element.hidden = false;
     element.classList.add("is-active");
-    if (info && info.watch) {
-      element.dataset.activeConnectionId = info.watch.identifier;
-      element.dataset.activeConnectionDataSource = info.dataSource || getDataSource();
-    } else {
-      element.dataset.activeConnectionId = "";
-      element.dataset.activeConnectionDataSource = "";
-    }
   };
 
   const scoreConnection = (connection, queryLower) => {
@@ -1065,6 +867,7 @@
   };
 
   const hideResults = () => {
+    searchRequestId += 1;
     const results = getResultsElement();
     if (!results) {
       return;
@@ -1085,6 +888,7 @@
       const item = document.createElement("div");
       item.className = "msp-toolbar__result";
       item.dataset.connectionId = match.id;
+      item.dataset.dataSource = match.dataSource;
 
       const mainButton = document.createElement("button");
       mainButton.type = "button";
@@ -1126,10 +930,9 @@
         if (!activeConnectionId) {
           return;
         }
-        const dataSource = watchButton.dataset.activeConnectionDataSource || getDataSource();
         navigateToActiveConnection(activeConnectionId, {
           openInNewTab: shouldOpenInNewTab(event),
-          dataSource
+          dataSource: match.dataSource
         });
       };
       watchButton.addEventListener("click", handleWatchInteraction);
@@ -1146,9 +949,9 @@
       item.appendChild(openButton);
       results.appendChild(item);
 
-      fetchActiveUsersForConnection(match.id)
+      fetchActiveUsersForConnection(match.id, match.dataSource)
         .then((info) => {
-          if (!users.isConnected || users.dataset.connectionId !== match.id) {
+          if (!info || !users.isConnected) {
             return;
           }
           updateActiveUsersElement(users, info);
@@ -1160,15 +963,12 @@
             }
             watchButton.hidden = false;
             watchButton.dataset.activeConnectionId = info.watch.identifier;
-            watchButton.dataset.activeConnectionDataSource =
-              info.dataSource || getDataSource();
             const label =
               info.watch.displayName || info.watch.username || `actieve sessie`;
             watchButton.setAttribute("title", `Meekijken met ${label}`);
           } else if (watchButton.isConnected) {
             watchButton.hidden = true;
             watchButton.dataset.activeConnectionId = "";
-            watchButton.dataset.activeConnectionDataSource = "";
             watchButton.removeAttribute("title");
             watchButton.remove();
           }
@@ -1177,7 +977,6 @@
         updateActiveUsersElement(users, { users: [] });
         watchButton.hidden = true;
         watchButton.dataset.activeConnectionId = "";
-        watchButton.dataset.activeConnectionDataSource = "";
         watchButton.removeAttribute("title");
         if (watchButton.isConnected) {
           watchButton.remove();
@@ -1247,18 +1046,12 @@
     });
   };
 
-  const buildClientHash = (connectionId) => {
-    const clientIdentifier = buildClientIdentifier(connectionId);
+  const buildClientHash = (connectionId, dataSource) => {
+    const clientIdentifier = buildClientIdentifier(connectionId, { dataSource });
     const hash = window.location.hash || "";
     const [, hashQuery = ""] = hash.split("?");
     const querySuffix = hashQuery ? `?${hashQuery}` : "";
     return `#/client/${clientIdentifier}${querySuffix}`;
-  };
-
-  const buildClientUrl = (connectionId) => {
-    const targetHash = buildClientHash(connectionId);
-    const { origin, pathname, search } = window.location;
-    return `${origin}${pathname}${search}${targetHash}`;
   };
 
   const buildActiveConnectionHash = (activeConnectionId, options = {}) => {
@@ -1306,13 +1099,14 @@
     if (!connectionId) {
       return;
     }
-    const { openInNewTab = false } = options;
+    const { openInNewTab = false, dataSource } = options;
+    const targetHash = buildClientHash(connectionId, dataSource);
     if (openInNewTab) {
-      const targetUrl = buildClientUrl(connectionId);
+      const { origin, pathname, search } = window.location;
+      const targetUrl = `${origin}${pathname}${search}${targetHash}`;
       window.open(targetUrl, "_blank", "noopener");
       return;
     }
-    const targetHash = buildClientHash(connectionId);
     window.location.hash = targetHash;
   };
 
@@ -1334,55 +1128,36 @@
     window.location.hash = targetHash;
   };
 
-  const updateResults = async () => {
+  const updateResults = async ({ openFirst = false, openInNewTab = false } = {}) => {
+    syncSession();
     const input = document.getElementById(SEARCH_INPUT_ID);
     if (!input) {
       return;
     }
     const query = input.value.trim();
-    if (query.length < SEARCH_SUGGEST_MIN) {
+    if (query.length < (openFirst ? 1 : SEARCH_SUGGEST_MIN)) {
       hideResults();
       return;
     }
     const requestId = ++searchRequestId;
+    const route = window.location.hash;
+    const isCurrent = () =>
+      requestId === searchRequestId &&
+      input.value.trim() === query &&
+      window.location.hash === route &&
+      sessionToken === getAuthToken();
     if (!connectionIndex) {
       showResultsMessage("Laden...");
+      try {
+        await ensureConnectionIndex();
+      } catch (error) {
+        if (isCurrent()) {
+          showResultsMessage("Kon verbindingen niet laden.");
+        }
+        return;
+      }
     }
-    try {
-      await ensureConnectionIndex();
-    } catch (error) {
-      showResultsMessage("Kon verbindingen niet laden.");
-      return;
-    }
-    if (requestId !== searchRequestId) {
-      return;
-    }
-    const matches = findMatches(query).slice(0, getMaxResults(query));
-    if (!matches.length) {
-      showResultsMessage("Geen resultaten.");
-      return;
-    }
-    renderResults(matches);
-  };
-
-  const performSearch = async (openFirst, options = {}) => {
-    const { openInNewTab = false } = options;
-    const input = document.getElementById(SEARCH_INPUT_ID);
-    if (!input) {
-      return;
-    }
-    const query = input.value.trim();
-    if (!query) {
-      hideResults();
-      return;
-    }
-    if (!connectionIndex) {
-      showResultsMessage("Laden...");
-    }
-    try {
-      await ensureConnectionIndex();
-    } catch (error) {
-      showResultsMessage("Kon verbindingen niet laden.");
+    if (!isCurrent()) {
       return;
     }
     const matches = findMatches(query).slice(0, getMaxResults(query));
@@ -1391,7 +1166,8 @@
       return;
     }
     if (openFirst) {
-      navigateToConnection(matches[0].id, { openInNewTab });
+      const { id, dataSource } = matches[0];
+      navigateToConnection(id, { openInNewTab, dataSource });
       if (!openInNewTab) {
         hideResults();
       }
@@ -1410,7 +1186,7 @@
     if (event.type === "keydown") {
       if (event.key === "Enter") {
         event.preventDefault();
-        void performSearch(true, { openInNewTab: shouldOpenInNewTab(event) });
+        void updateResults({ openFirst: true, openInNewTab: shouldOpenInNewTab(event) });
       }
       if (event.key === "Escape") {
         event.preventDefault();
@@ -1427,20 +1203,22 @@
   };
 
   const guacKeyFilterTargets = new WeakSet();
-  let guacKeyFiltersAttached = false;
+  let sessionEventsBound = false;
   let guacKeyFilterTimerId = null;
 
   const attachGuacKeyFilters = () => {
-    if (guacKeyFiltersAttached) {
-      return true;
+    const rootScope = getAngularRootScope();
+    if (rootScope && typeof rootScope.$on === "function" && !sessionEventsBound) {
+      sessionEventsBound = true;
+      rootScope.$on("guacLogin", updateVisibility);
+      rootScope.$on("guacLogout", updateVisibility);
+      updateVisibility();
     }
-    let attached = false;
-    [getAngularScope(), getAngularRootScope()].forEach((target) => {
+    [getAngularScope(), rootScope].forEach((target) => {
       if (!target || typeof target.$on !== "function" || guacKeyFilterTargets.has(target)) {
         return;
       }
       guacKeyFilterTargets.add(target);
-      attached = true;
       target.$on("guacBeforeKeydown", (event) => {
         if (isSearchFocused()) {
           event.preventDefault();
@@ -1452,10 +1230,7 @@
         }
       });
     });
-    if (attached) {
-      guacKeyFiltersAttached = true;
-    }
-    return attached;
+    return sessionEventsBound;
   };
 
   const ensureGuacKeyFilters = () => {
@@ -1589,13 +1364,6 @@
     dispatchKey("keyup", "Control", "ControlLeft", 17, { ctrlKey: false });
   };
 
-  const isToolbarAllowed = () => {
-    if (!window.matchMedia) {
-      return true;
-    }
-    return !window.matchMedia(MOBILE_MEDIA_QUERY).matches;
-  };
-
   const isLoginRoute = () => {
     const hash = window.location.hash || "";
     return /^#\/login/.test(hash);
@@ -1624,6 +1392,8 @@
     // If we cannot determine auth state, default to visible; login route check still hides it.
     return true;
   };
+
+  const isToolbarVisible = () => !toolbarMedia?.matches && !isLoginRoute() && isAuthenticated();
 
   const getActiveGroupIdFromHash = () => {
     const hash = window.location.hash || "";
@@ -1862,10 +1632,8 @@
   };
 
   const resetCaches = () => {
-    activeUserCache.clear();
+    invalidateActiveUserCaches();
     userDirectoryCache.clear();
-    activeConnectionsIndexCache.clear();
-    activeConnectionsIndexSelectionCache = null;
     connectionIndex = null;
     connectionIndexPromise = null;
   };
@@ -1873,13 +1641,30 @@
   const invalidateActiveUserCaches = () => {
     activeUserCache.clear();
     activeConnectionsIndexCache.clear();
-    activeConnectionsIndexSelectionCache = null;
+  };
+
+  const syncSession = () => {
+    const token = getAuthToken();
+    if (sessionToken === token) {
+      return;
+    }
+    const initialized = sessionToken !== undefined;
+    sessionToken = token;
+    if (!initialized) {
+      return;
+    }
+    resetCaches();
+    clearSearchInput();
+    tabOrder = [];
+    tabSnapshot = "[]";
+    renderTabBar([]);
+    setTabBarVisibility(false);
   };
 
   const refreshSearchResultsIfVisible = () => {
     const input = getSearchInput();
     const results = getResultsElement();
-    if (!input || !results || results.hidden) {
+    if (!connectionIndex || !input || !results || results.hidden) {
       return;
     }
     const query = input.value.trim();
@@ -1925,6 +1710,7 @@
         clientIds.forEach(replaceClient);
       }
       navigateToClientGroup(groupId, { openInNewTab: false });
+      clearSearchInput();
       resetCaches();
       return;
     }
@@ -1944,35 +1730,21 @@
   };
 
   const syncTabBar = () => {
-    const toolbarVisible = isToolbarAllowed() && !isLoginRoute() && isAuthenticated();
-    if (!toolbarVisible) {
-      stopTabSync();
-      tabSnapshot = "";
-      setTabBarVisibility(false);
-      updateToolbarHeight();
+    if (!isToolbarVisible()) {
+      updateVisibility();
       return;
     }
+    syncSession();
     const tabs = orderTabs(buildTabModels());
     setTabBarVisibility(tabs.length > 0);
     const snapshot = JSON.stringify(tabs);
-    if (!tabs.length) {
-      const list = getTabListElement();
-      if (list) {
-        list.innerHTML = "";
-      }
-      tabSnapshot = "";
-      updateToolbarHeight();
-      return;
-    }
     if (snapshot === tabSnapshot) {
-      updateToolbarHeight();
       return;
     }
     tabSnapshot = snapshot;
     renderTabBar(tabs);
     invalidateActiveUserCaches();
     refreshSearchResultsIfVisible();
-    updateToolbarHeight();
   };
 
   const startTabSync = () => {
@@ -1980,7 +1752,6 @@
       return;
     }
     tabSyncIntervalId = setInterval(syncTabBar, TAB_SYNC_INTERVAL);
-    syncTabBar();
   };
 
   const stopTabSync = () => {
@@ -2005,19 +1776,22 @@
   };
 
   const updateVisibility = () => {
+    syncSession();
     const toolbar = document.getElementById(TOOLBAR_ID);
     if (!toolbar) {
       return;
     }
-    const visible = isToolbarAllowed() && !isLoginRoute() && isAuthenticated();
+    const visible = isToolbarVisible();
     toolbar.style.display = visible ? "flex" : "none";
     document.body.classList.toggle(BODY_ACTIVE_CLASS, visible);
     if (!visible) {
       document.body.style.setProperty("--msp-toolbar-height", "0px");
       hideResults();
-      syncTabBar();
+      stopTabSync();
+      setTabBarVisibility(false);
       return;
     }
+    startTabSync();
     syncTabBar();
     updateToolbarHeight();
   };
@@ -2042,13 +1816,6 @@
         // Ignore logout errors; visibility will update based on auth state.
       }
     }
-    tabOrder = [];
-    tabSnapshot = "";
-    const list = getTabListElement();
-    if (list) {
-      list.innerHTML = "";
-    }
-    setTabBarVisibility(false);
     updateVisibility();
   };
 
@@ -2093,7 +1860,12 @@
         if (toolbar && related && toolbar.contains(related)) {
           return;
         }
-        setTimeout(hideResults, 0);
+        const requestId = ++searchRequestId;
+        setTimeout(() => {
+          if (requestId === searchRequestId && !isSearchFocused()) {
+            hideResults();
+          }
+        }, 0);
       });
       searchInput.addEventListener("input", () => {
         void updateResults();
@@ -2106,7 +1878,7 @@
         }
         if (event.key === "Enter") {
           event.preventDefault();
-          void performSearch(true, { openInNewTab: shouldOpenInNewTab(event) });
+          void updateResults({ openFirst: true, openInNewTab: shouldOpenInNewTab(event) });
         }
         if (event.key === "Escape") {
           hideResults();
@@ -2134,7 +1906,8 @@
         }
         const openButtonClicked = event.target.closest(".msp-toolbar__result-open");
         const openInNewTab = openButtonClicked ? true : shouldOpenInNewTab(event);
-        navigateToConnection(target.dataset.connectionId, { openInNewTab });
+        const { connectionId, dataSource } = target.closest(".msp-toolbar__result").dataset;
+        navigateToConnection(connectionId, { openInNewTab, dataSource });
         if (!openInNewTab) {
           clearSearchInput();
           blurSearchInput();
@@ -2146,10 +1919,14 @@
     const toolbar = document.getElementById(TOOLBAR_ID);
     updateVisibility();
     ensureGuacKeyFilters();
-    startTabSync();
-    window.addEventListener("hashchange", updateVisibility);
-    window.addEventListener("popstate", updateVisibility);
+    const handleNavigation = () => {
+      hideResults();
+      updateVisibility();
+    };
+    window.addEventListener("hashchange", handleNavigation);
+    window.addEventListener("popstate", handleNavigation);
     window.addEventListener("resize", updateVisibility);
+    toolbarMedia?.addEventListener?.("change", updateVisibility);
     document.addEventListener("click", (event) => {
       if (toolbar && !toolbar.contains(event.target)) {
         hideResults();

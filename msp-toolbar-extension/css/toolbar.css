@@ -507,13 +507,11 @@
   outline: none;
 }
 
-@media (min-width: 901px) {
-  #content .header > .navigation,
-  #content .header > .user-menu,
-  #guac-menu .header > .navigation,
-  #guac-menu .header > .user-menu {
-    display: none !important;
-  }
+body.msp-toolbar-active #content .header > .navigation,
+body.msp-toolbar-active #content .header > .user-menu,
+body.msp-toolbar-active #guac-menu .header > .navigation,
+body.msp-toolbar-active #guac-menu .header > .user-menu {
+  display: none !important;
 }
 
 @media (max-width: 1400px) {
@@ -554,9 +552,6 @@ body.msp-toolbar-active {
   }
 }
 
-@media (min-width: 901px) {
-  body:not(.msp-toolbar-active) #other-connections,
-  .msp-toolbar-active #other-connections > div:not(#filesystem-menu) {
-    display: none !important;
-  }
+body.msp-toolbar-active #other-connections > div:not(#filesystem-menu) {
+  display: none !important;
 }
